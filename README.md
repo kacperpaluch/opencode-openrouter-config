@@ -70,7 +70,11 @@ Ceny w katalogu to ceny najtańszego providera.
      na dowolnego innego providera przy awarii. Wyłączona daje pewność ceny i jakości, ale przy awarii dostaniesz błąd.
    - **Routery** (`openrouter/free`, `openrouter/auto` itp.) same dobierają model i providera,
      więc nie ma tu czego wybierać.
-Jeśli provider zmienił cenę od ostatniego zapisu, edytor pokaże ostrzeżenie (np. „wejście $0.04 → $0.06”).
+Po uruchomieniu aplikacja sprawdza ceny wszystkich zapisanych modeli. U góry lewej kolumny widać
+„Ceny bez zmian” albo listę modeli, które zdrożały, potaniały lub straciły przypiętego providera,
+a na kartach modeli strzałki ↑ / ↓ (po najechaniu widać kwoty).
+
+Jeśli provider zmienił cenę od ostatniego zapisu, edytor pokaże też ostrzeżenie (np. „wejście $0.04 → $0.06”).
 Wystarczy kliknąć **Zapisz zmiany**, żeby zaktualizować `cost`.
 
 3. **Pasek na dole** pokazuje, co zostanie zapisane. Tam są przyciski **Dodaj do configu** / **Zapisz zmiany** i **Usuń z configu**.

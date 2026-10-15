@@ -7,13 +7,13 @@
 <style>
   :root {
     --bg: #fff; --bg-soft: #f7f7f8; --fg: #18181b; --muted: #71717a; --line: #e4e4e7; --hover: #f4f4f5;
-    --accent: #2563eb; --accent-soft: #eff4ff; --accent-line: #bfd3fe; --danger: #dc2626; --warn-soft: #fef3c7; --warn: #92400e;
+    --accent: #2563eb; --accent-soft: #eff4ff; --accent-line: #bfd3fe; --danger: #dc2626; --warn-soft: #fef3c7; --warn: #92400e; --ok: #15803d;
     color-scheme: light dark;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #111113; --bg-soft: #18181b; --fg: #ececee; --muted: #8b8b93; --line: #2a2a2e; --hover: #1d1d21;
-      --accent: #6b9bff; --accent-soft: #172036; --accent-line: #2c4170; --danger: #f87171; --warn-soft: #3a2a0c; --warn: #fbbf24;
+      --accent: #6b9bff; --accent-soft: #172036; --accent-line: #2c4170; --danger: #f87171; --warn-soft: #3a2a0c; --warn: #fbbf24; --ok: #4ade80;
     }
   }
   * { box-sizing: border-box; }
@@ -66,6 +66,13 @@
   .card .mono { margin-top: 2px; color: var(--muted); }
   .card .meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; color: var(--muted); font-size: 12px; }
   .tag { padding: 0 7px; border-radius: 99px; font-size: 11px; font-weight: 500; background: var(--accent-soft); color: var(--accent); }
+  .trend { margin-left: 6px; font-weight: 500; }
+  .up, .missing { color: var(--danger); }
+  .down { color: var(--ok); }
+  .mixed { color: var(--warn); }
+  .price-status { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--muted); }
+  .price-status div + div { margin-top: 2px; }
+  .price-status small { margin-top: 6px; }
   .add { width: 100%; margin-top: 4px; border-style: dashed; color: var(--muted); }
 
   /* --- Prawa strona --- */
@@ -140,6 +147,7 @@
     <span class="mono" id="cfg-path"></span>
   </div>
   <div class="side">
+    <div class="price-status" id="price-status" hidden></div>
     <section>
       <p class="label">Role</p>
       <label class="role">
@@ -203,6 +211,7 @@ const state = {
   config: null,
   catalogSort: { key: "created", dir: -1 },
   editor: null,
+  prices: null, // id → { status: ok|up|down|mixed|missing, diff }
 };
 
 async function api(path, body) {
@@ -282,10 +291,63 @@ function renderSide() {
       <div class="mono">${esc(id)}</div>
       <div class="meta">
         <span>${order?.length ? esc(order.join(" → ")) : "automatycznie"}</span>
-        <span>${e.cost ? `${usd(e.cost.input)} / ${usd(e.cost.output)}` : ""}</span>
+        <span>${e.cost ? `${usd(e.cost.input)} / ${usd(e.cost.output)}` : ""}${trendBadge(id)}</span>
       </div>
     </button>`;
   }).join("") : '<p class="muted" style="margin:0">Nie masz jeszcze modeli. Wybierz model z listy obok.</p>';
+  renderPriceStatus();
+}
+
+// --- Kontrola cen zapisanych modeli ---
+
+const TRENDS = {
+  up: ["↑ drożej", "Drożej"],
+  down: ["↓ taniej", "Taniej"],
+  mixed: ["↕ zmiana ceny", "Zmiana ceny"],
+  missing: ["⚠ brak providera", "Provider niedostępny"],
+};
+
+// Porównuje zapisany `cost` z aktualną ceną pierwszego providera (albo ceną modelu w trybie auto).
+async function checkPrices() {
+  const results = await Promise.all(Object.entries(state.config.models).filter(([, e]) => e.cost).map(async ([id, e]) => {
+    const tag = e.options?.provider?.order?.[0];
+    let pricing = state.byId.get(id)?.pricing;
+    if (tag) {
+      const endpoints = await api(`/api/endpoints?id=${encodeURIComponent(id)}`).then((d) => d.endpoints, () => null);
+      if (!endpoints) return null;
+      const ep = endpoints.find((x) => x.tag === tag);
+      if (!ep) return [id, { status: "missing", tag }];
+      pricing = ep.pricing;
+    }
+    const diff = costDiff(e.cost, costFrom(pricing));
+    return [id, { status: diff.length ? trendOf(diff) : "ok", diff }];
+  }));
+  state.prices = Object.fromEntries(results.filter(Boolean));
+  renderSide();
+}
+
+const trendOf = (diff) => (diff.every((d) => d.to > d.from) ? "up" : diff.every((d) => d.to < d.from) ? "down" : "mixed");
+
+function trendBadge(id) {
+  const p = state.prices?.[id];
+  if (!p || p.status === "ok") return "";
+  const title = p.status === "missing" ? `Providera ${p.tag} nie ma już w OpenRouter` : diffText(p.diff);
+  return `<span class="trend ${p.status}" title="${esc(title)}">${TRENDS[p.status][0]}</span>`;
+}
+
+function renderPriceStatus() {
+  const el = $("#price-status");
+  const { models } = state.config;
+  el.hidden = !Object.values(models).some((e) => e.cost);
+  if (el.hidden) return;
+  if (!state.prices) return (el.textContent = "Sprawdzam ceny…");
+  const lines = Object.entries(TRENDS).map(([status, [, label]]) => {
+    const ids = Object.keys(state.prices).filter((id) => models[id] && state.prices[id].status === status);
+    return ids.length ? `<div><b class="${status}">${label}:</b> ${ids.map((id) => esc(models[id].name ?? id)).join(", ")}</div>` : "";
+  }).join("");
+  el.innerHTML = lines
+    ? `${lines}<small>Otwórz model i zapisz, żeby zaktualizować cenę w configu.</small>`
+    : '<span class="down">✓</span> Ceny bez zmian od ostatniego zapisu';
 }
 
 document.querySelector("aside").addEventListener("click", (e) => {
@@ -386,17 +448,21 @@ function costFrom(pricing) {
 }
 
 // Zmiany cen względem zapisanego `cost` — tylko gdy trasa jest taka sama jak w configu.
+const COST_FIELDS = [["input", "wejście"], ["output", "wyjście"], ["cache_read", "cache"]];
+
+const costDiff = (saved, now) => (!saved || !now ? [] : COST_FIELDS
+  .filter(([k]) => saved[k] != null && now[k] != null && saved[k] !== now[k])
+  .map(([k, label]) => ({ label, from: saved[k], to: now[k] })));
+
+const diffText = (diff) => diff.map((d) => `${d.label} ${usd(d.from)} → ${usd(d.to)}`).join(", ");
+
 function priceChanges(ed) {
   const saved = ed.existing?.cost;
   if (!saved || ed.loading) return [];
   const savedOrder = ed.existing.options?.provider?.order ?? [];
   const order = ed.mode === "pinned" ? ed.picked : [];
   if (order.join() !== savedOrder.join()) return [];
-  const now = costFrom(routePricing(ed));
-  if (!now) return [];
-  return [["input", "wejście"], ["output", "wyjście"], ["cache_read", "cache"]]
-    .filter(([k]) => saved[k] != null && now[k] != null && saved[k] !== now[k])
-    .map(([k, label]) => `${label} ${usd(saved[k])} → ${usd(now[k])}`);
+  return costDiff(saved, costFrom(routePricing(ed)));
 }
 
 const routePricing = (ed) => (ed.mode === "pinned" ? pickedEndpoints(ed)[0]?.pricing : null) ?? ed.model.pricing;
@@ -475,7 +541,7 @@ function renderEditor() {
       ${m.description ? `<p class="desc">${esc(m.description)}</p>` : ""}
     </div>
     ${changes.length ? `<p class="note warn" style="margin:0">
-      Cena ${ed.mode === "pinned" ? `u ${esc(providerName(ed, ed.picked[0]))}` : "modelu"} zmieniła się: ${esc(changes.join(", "))} za 1M.
+      Cena ${ed.mode === "pinned" ? `u ${esc(providerName(ed, ed.picked[0]))}` : "modelu"} zmieniła się: ${esc(diffText(changes))} za 1M.
       Zapisz, żeby zaktualizować licznik kosztów w OpenCode.</p>` : ""}
 
     <section class="panel">
@@ -588,6 +654,7 @@ $("#editor-view").addEventListener("click", async (e) => {
       ed.existing = state.config.models[ed.id];
       ed.roles.clear();
       renderAll();
+      checkPrices();
     }
     return;
   }
@@ -666,6 +733,7 @@ try {
   state.byId = new Map(state.models.map((m) => [m.id, m]));
   renderSide();
   renderCatalog();
+  checkPrices();
 } catch (e) {
   $("#catalog").innerHTML = `<tbody><tr><td class="empty">${esc(e.message)}</td></tr></tbody>`;
 }
