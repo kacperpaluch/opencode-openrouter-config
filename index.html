@@ -385,6 +385,20 @@ function costFrom(pricing) {
   return cost;
 }
 
+// Zmiany cen względem zapisanego `cost` — tylko gdy trasa jest taka sama jak w configu.
+function priceChanges(ed) {
+  const saved = ed.existing?.cost;
+  if (!saved || ed.loading) return [];
+  const savedOrder = ed.existing.options?.provider?.order ?? [];
+  const order = ed.mode === "pinned" ? ed.picked : [];
+  if (order.join() !== savedOrder.join()) return [];
+  const now = costFrom(routePricing(ed));
+  if (!now) return [];
+  return [["input", "wejście"], ["output", "wyjście"], ["cache_read", "cache"]]
+    .filter(([k]) => saved[k] != null && now[k] != null && saved[k] !== now[k])
+    .map(([k, label]) => `${label} ${usd(saved[k])} → ${usd(now[k])}`);
+}
+
 const routePricing = (ed) => (ed.mode === "pinned" ? pickedEndpoints(ed)[0]?.pricing : null) ?? ed.model.pricing;
 
 function buildEntry(ed) {
@@ -451,6 +465,7 @@ async function openEditor(id) {
 function renderEditor() {
   const ed = state.editor, m = ed.model;
   const costKnown = Boolean(costFrom(routePricing(ed)));
+  const changes = priceChanges(ed);
 
   $("#editor").innerHTML = `
     <div>
@@ -459,6 +474,9 @@ function renderEditor() {
       <div class="mono muted">${esc(m.id)}</div>
       ${m.description ? `<p class="desc">${esc(m.description)}</p>` : ""}
     </div>
+    ${changes.length ? `<p class="note warn" style="margin:0">
+      Cena ${ed.mode === "pinned" ? `u ${esc(providerName(ed, ed.picked[0]))}` : "modelu"} zmieniła się: ${esc(changes.join(", "))} za 1M.
+      Zapisz, żeby zaktualizować licznik kosztów w OpenCode.</p>` : ""}
 
     <section class="panel">
       <h2>Nazwa i rola</h2>
