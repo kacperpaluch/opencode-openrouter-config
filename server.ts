@@ -7,6 +7,7 @@ const PORT = Number(process.env.PORT ?? 4747);
 const URL_BASE = `http://127.0.0.1:${PORT}`;
 const OPENROUTER = "https://openrouter.ai/api/v1";
 const CACHE_TTL = 5 * 60_000;
+const IDLE_MINUTES = Number(process.env.IDLE_MINUTES ?? 30); // 0 = nigdy się nie wyłączaj
 const DEFAULT_KEYS = ["model", "small_model"];
 const MODEL_ID = /^[\w.:~-]+\/[\w.:~-]+$/;
 
@@ -125,32 +126,46 @@ function isLocalRequest(req: Request) {
   return fromApp && req.headers.get("content-type")?.startsWith("application/json");
 }
 
+// Każde zapytanie odsuwa automatyczne wyłączenie serwera.
+let lastRequest = Date.now();
+const tracked = <T extends unknown[], R>(handler: (...args: T) => R) => (...args: T) => {
+  lastRequest = Date.now();
+  return handler(...args);
+};
+
 try {
   Bun.serve({
     hostname: "127.0.0.1",
     port: PORT,
     routes: {
-      "/": () => new Response(Bun.file(join(import.meta.dir, "index.html"))),
-      "/api/models": () => respond(() => openrouter("/models")),
-      "/api/endpoints": (req) =>
+      "/": tracked(() => new Response(Bun.file(join(import.meta.dir, "index.html")))),
+      "/api/models": tracked(() => respond(() => openrouter("/models"))),
+      "/api/endpoints": tracked((req: Request) =>
         respond(() => {
           const id = new URL(req.url).searchParams.get("id") ?? "";
           if (!MODEL_ID.test(id)) throw new Error(`Niepoprawne id modelu: ${id}`);
           return openrouter(`/models/${id}/endpoints`);
-        }),
+        })),
       "/api/config": {
-        GET: () => respond(configView),
-        POST: async (req) => {
+        GET: tracked(() => respond(configView)),
+        POST: tracked(async (req: Request) => {
           if (!isLocalRequest(req)) return new Response("Forbidden", { status: 403 });
           return respond(async () => {
             await applyAction(await req.json());
             return configView();
           });
-        },
+        }),
       },
     },
   });
   console.log(`OpenCode config → ${URL_BASE}\nPlik: ${CONFIG_PATH}`);
+  if (IDLE_MINUTES > 0) {
+    setInterval(() => {
+      if (Date.now() - lastRequest < IDLE_MINUTES * 60_000) return;
+      console.log(`Brak aktywności przez ${IDLE_MINUTES} min — wyłączam serwer.`);
+      process.exit(0);
+    }, 60_000);
+  }
 } catch (e) {
   if ((e as { code?: string }).code !== "EADDRINUSE") throw e;
   console.log(`Już działa na ${URL_BASE}`);

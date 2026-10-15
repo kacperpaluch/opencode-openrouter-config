@@ -210,6 +210,8 @@ async function api(path, body) {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
+  }).catch(() => {
+    throw new Error("Serwer nie odpowiada — wyłącza się po 30 min bezczynności. Uruchom OpenCode Models ponownie.");
   });
   const data = await res.json().catch(() => ({ error: res.statusText }));
   if (!res.ok) throw new Error(data.error);

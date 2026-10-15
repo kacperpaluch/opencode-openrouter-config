@@ -17,6 +17,21 @@ bun start
 Strona otworzy się w przeglądarce pod `http://127.0.0.1:4747`. Jeśli serwer już działa,
 `bun start` tylko otworzy stronę. Zatrzymanie: `Ctrl+C` w terminalu.
 
+Serwer wyłącza się sam po 30 minutach bez żadnego zapytania. Jeśli zostawisz otwartą kartę dłużej,
+strona pokaże komunikat, że serwer nie odpowiada. Wtedy uruchom aplikację ponownie.
+
+### Aplikacja w Spotlight / Docku
+
+```sh
+./scripts/install-app.sh
+```
+
+Tworzy `~/Applications/OpenCode Models.app`. Od tej pory wystarczy **Cmd+Spacja → „OpenCode Models”**
+(albo ikona w Docku): serwer startuje w tle bez terminala i otwiera się przeglądarka.
+Logi serwera trafiają do `~/Library/Logs/opencode-openrouter-config.log`.
+
+Aplikacja zapamiętuje ścieżkę do repo i do `bun`. Po przeniesieniu folderu uruchom skrypt ponownie.
+
 Opcje:
 
 | | |
@@ -24,6 +39,7 @@ Opcje:
 | `PORT=5000 bun start` | inny port |
 | `OPENCODE_CONFIG=/ścieżka/do/pliku.jsonc bun start` | inny plik configu (np. kopia do testów) |
 | `bun server.ts --no-open` | bez otwierania przeglądarki |
+| `IDLE_MINUTES=60 bun start` | inny czas automatycznego wyłączenia (`0` = nigdy) |
 
 ## Jak korzystać
 
@@ -113,6 +129,7 @@ przeglądarka (index.html)  ⇄  server.ts (Bun, 127.0.0.1:4747)  ⇄  OpenRoute
     formatowanie i reszta configu (pluginy, inne ustawienia) zostają nietknięte.
   - Przed każdym zapisem robi kopię **`opencode.jsonc.bak`** (tylko ostatnią).
   - Nasłuchuje wyłącznie na `127.0.0.1` i odrzuca zapisy wysłane z innych stron.
+- **`scripts/install-app.sh`**: buduje `OpenCode Models.app` przez `osacompile` (AppleScript uruchamiający serwer).
 - **`index.html`**: cały interfejs, czysty HTML/CSS/JS bez frameworka i bez budowania.
 
 Config wybierany jest w kolejności: zmienna `OPENCODE_CONFIG`, potem `~/.config/opencode/opencode.jsonc`,
