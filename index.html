@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenCode Models</title>
+<style>
+  :root {
+    --bg: #fff; --bg-soft: #f7f7f8; --fg: #18181b; --muted: #71717a; --line: #e4e4e7; --hover: #f4f4f5;
+    --accent: #2563eb; --accent-soft: #eff4ff; --accent-line: #bfd3fe; --danger: #dc2626; --warn-soft: #fef3c7; --warn: #92400e;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111113; --bg-soft: #18181b; --fg: #ececee; --muted: #8b8b93; --line: #2a2a2e; --hover: #1d1d21;
+      --accent: #6b9bff; --accent-soft: #172036; --accent-line: #2c4170; --danger: #f87171; --warn-soft: #3a2a0c; --warn: #fbbf24;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; height: 100vh; display: grid; grid-template-columns: 320px 1fr;
+    font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--fg);
+  }
+  .mono { font: 11.5px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .muted { color: var(--muted); }
+  small { display: block; color: var(--muted); font-size: 12px; }
+  h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
+  h2 { margin: 0 0 12px; font-size: 13px; font-weight: 600; }
+  .label { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+
+  input[type=text], input[type=search], select {
+    width: 100%; font: inherit; color: inherit; background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+  }
+  input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input[type=checkbox], input[type=radio] { accent-color: var(--accent); margin: 2px 0 0; }
+  button {
+    font: inherit; color: inherit; background: var(--bg); cursor: pointer;
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 14px;
+  }
+  button:hover:not(:disabled) { background: var(--hover); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+  button.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.08); }
+  button.danger { color: var(--danger); }
+  button.link { border: 0; padding: 0; background: none; color: var(--muted); }
+  button.link:hover:not(:disabled) { background: none; color: var(--fg); }
+
+  /* --- Lewa kolumna: config --- */
+  aside { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); background: var(--bg-soft); }
+  .brand { padding: 18px 18px 14px; }
+  .brand b { font-size: 15px; }
+  .brand .mono { display: block; margin-top: 2px; color: var(--muted); word-break: break-all; }
+  .side { flex: 1; overflow: auto; padding: 4px 18px 18px; display: grid; gap: 22px; align-content: start; }
+  .role { display: grid; gap: 4px; margin-bottom: 12px; }
+  .role b { font-weight: 500; }
+  .saved { display: grid; gap: 6px; }
+  .card {
+    display: block; width: 100%; text-align: left; padding: 10px 12px;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+  }
+  .card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .card .top { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-weight: 500; }
+  .card .mono { margin-top: 2px; color: var(--muted); }
+  .card .meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; color: var(--muted); font-size: 12px; }
+  .tag { padding: 0 7px; border-radius: 99px; font-size: 11px; font-weight: 500; background: var(--accent-soft); color: var(--accent); }
+  .add { width: 100%; margin-top: 4px; border-style: dashed; color: var(--muted); }
+
+  /* --- Prawa strona --- */
+  main { min-height: 0; overflow: auto; }
+  .catalog-head {
+    position: sticky; top: 0; z-index: 2; background: var(--bg);
+    padding: 18px 28px 12px; border-bottom: 1px solid var(--line); display: grid; gap: 12px;
+  }
+  .catalog-head .row { display: flex; gap: 16px; align-items: center; }
+  .catalog-head input[type=search] { max-width: 420px; }
+  .catalog-head label { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+  th { font-size: 12px; font-weight: 500; color: var(--muted); }
+  th[data-sort] { cursor: pointer; user-select: none; }
+  th[data-sort]:hover, th.sorted { color: var(--fg); }
+  .n { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: var(--hover); }
+  .catalog { padding: 0 18px 24px; }
+  .catalog td:first-child { white-space: normal; }
+  .catalog .mono { color: var(--muted); }
+
+  #editor-view { min-height: 100%; display: flex; flex-direction: column; }
+  .editor { flex: 1; padding: 18px 28px 24px; max-width: 1100px; display: grid; gap: 20px; align-content: start; }
+  .editor .desc { margin: 8px 0 0; max-width: 80ch; color: var(--muted); }
+  .panel { border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .field { display: grid; gap: 6px; max-width: 520px; margin-bottom: 16px; }
+  .field span { font-weight: 500; }
+  .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .check { display: flex; gap: 9px; align-items: flex-start; cursor: pointer; }
+  .check b { font-weight: 500; }
+  .check:has(input:disabled) { cursor: default; }
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .mode { display: flex; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+  .mode.on { border-color: var(--accent-line); background: var(--accent-soft); }
+  .mode b { font-weight: 500; }
+  .note { margin: 0 0 14px; padding: 10px 12px; border-radius: 8px; background: var(--bg-soft); color: var(--muted); }
+  .note.warn { background: var(--warn-soft); color: var(--warn); }
+  .order { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 14px; min-height: 28px; }
+  .chip { display: inline-flex; gap: 2px; align-items: center; padding: 3px 4px 3px 10px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+  .chip button { border: 0; background: none; color: inherit; padding: 0 6px; line-height: 1; font-size: 15px; }
+  .arrow { color: var(--muted); }
+  .providers { margin-top: 16px; }
+  .pick {
+    display: inline-grid; place-items: center; width: 20px; height: 20px;
+    border: 1.5px solid var(--line); border-radius: 6px; font-size: 11px; font-weight: 600;
+  }
+  tr.picked, tr.picked:hover { background: var(--accent-soft); }
+  tr.picked .pick { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .savebar {
+    position: sticky; bottom: 0; z-index: 2; display: flex; gap: 10px; align-items: center;
+    padding: 12px 28px; border-top: 1px solid var(--line); background: var(--bg);
+  }
+  .savebar .summary { flex: 1; min-width: 0; color: var(--muted); }
+  .savebar .summary b { color: var(--fg); font-weight: 500; }
+  .empty { padding: 24px 0; color: var(--muted); }
+  .toast {
+    position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 5;
+    padding: 8px 14px; border-radius: 8px; background: var(--fg); color: var(--bg);
+    opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand">
+    <b>OpenCode Models</b>
+    <span class="mono" id="cfg-path"></span>
+  </div>
+  <div class="side">
+    <section>
+      <p class="label">Role</p>
+      <label class="role">
+        <span><b>Główny model</b><small>Rozmowa, pisanie kodu, narzędzia</small></span>
+        <select data-role="model"></select>
+      </label>
+      <label class="role">
+        <span><b>Model pomocniczy</b><small>Tytuły sesji i inne drobne zadania w tle</small></span>
+        <select data-role="small_model"></select>
+      </label>
+    </section>
+    <section>
+      <p class="label">Twoje modele</p>
+      <div class="saved" id="saved"></div>
+      <button class="add" data-act="catalog">+ Dodaj model</button>
+    </section>
+  </div>
+</aside>
+
+<main>
+  <div id="catalog-view">
+    <div class="catalog-head">
+      <h1>Dodaj model</h1>
+      <div class="row">
+        <input type="search" id="q" placeholder="Szukaj, np. glm, claude, qwen…" autofocus>
+        <label title="OpenCode potrzebuje tool calling do edycji plików i uruchamiania komend">
+          <input type="checkbox" id="tools-only" checked> tylko z obsługą narzędzi
+        </label>
+      </div>
+    </div>
+    <div class="catalog"><table id="catalog"></table></div>
+  </div>
+  <div id="editor-view" hidden>
+    <div class="editor" id="editor"></div>
+    <div class="savebar" id="savebar"></div>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const per1M = (v) => (v == null || v === "" ? null : Number((parseFloat(v) * 1e6).toPrecision(6)));
+const usd = (v) => (v == null ? "—" : v < 0 ? "zmienna" : v === 0 ? "za darmo" : "$" + (v < 0.1 ? +v.toFixed(4) : +v.toFixed(2)));
+const tok = (n) => (n == null ? "—" : n >= 1e6 ? +(n / 1e6).toFixed(2) + "M" : n >= 1e3 ? Math.round(n / 1e3) + "k" : String(n));
+const date = (s) => new Date(s * 1000).toLocaleDateString("pl-PL", { day: "numeric", month: "short", year: "numeric" });
+const shortName = (name) => name.replace(/^[^:]+:\s*/, "");
+const ref = (id) => `openrouter/${id}`;
+// Routery (openrouter/free, openrouter/auto…) same wybierają model i providera.
+const isRouter = (m) => m.id.startsWith("openrouter/") || m.architecture?.tokenizer === "Router";
+const OUTPUT_FALLBACK = 32768; // gdy OpenRouter nie podaje limitu odpowiedzi
+
+const ROLES = [
+  { key: "model", label: "Ustaw jako główny model", hint: "Rozmowa, pisanie kodu, narzędzia" },
+  { key: "small_model", label: "Ustaw jako model pomocniczy", hint: "Tytuły sesji i drobne zadania" },
+];
+
+const state = {
+  models: [],
+  byId: new Map(),
+  config: null,
+  catalogSort: { key: "created", dir: -1 },
+  editor: null,
+};
+
+async function api(path, body) {
+  const res = await fetch(path, body && {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({ error: res.statusText }));
+  if (!res.ok) throw new Error(data.error);
+  return data;
+}
+
+function toast(msg) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t.timer);
+  t.timer = setTimeout(() => t.classList.remove("show"), 2500);
+}
+
+async function post(body, msg) {
+  try {
+    state.config = await api("/api/config", body);
+    toast(msg);
+    return true;
+  } catch (e) {
+    toast(`Błąd: ${e.message}`);
+    return false;
+  }
+}
+
+function sortRows(rows, cols, { key, dir }) {
+  const col = cols.find((c) => c.key === key);
+  return [...rows].sort((a, b) => {
+    const x = col.get(a), y = col.get(b);
+    if (x == null) return 1;
+    if (y == null) return -1;
+    return (typeof x === "string" ? x.localeCompare(y) : x - y) * dir;
+  });
+}
+
+const nextSort = (cols, current, key) =>
+  current.key === key ? { key, dir: -current.dir } : { key, dir: cols.find((c) => c.key === key).desc ? -1 : 1 };
+
+const thead = (cols, sort, first = "") => `<thead><tr>${first}${cols.map((c) => `
+  <th class="${c.n ? "n" : ""} ${sort.key === c.key ? "sorted" : ""}" data-sort="${c.key}" ${c.title ? `title="${esc(c.title)}"` : ""}>
+    ${c.label}${sort.key === c.key ? (sort.dir > 0 ? " ↑" : " ↓") : ""}
+  </th>`).join("")}</tr></thead>`;
+
+// --- Lewa kolumna: role i zapisane modele ---
+
+function renderSide() {
+  const { path, models } = state.config;
+  const ids = Object.keys(models);
+  $("#cfg-path").textContent = path.replace(/^\/Users\/[^/]+/, "~");
+
+  for (const sel of document.querySelectorAll("select[data-role]")) {
+    const current = state.config[sel.dataset.role];
+    sel.innerHTML = [
+      `<option value="">— nie ustawiono (OpenCode wybierze sam) —</option>`,
+      ...ids.map((id) => `<option value="${esc(id)}" ${current === ref(id) ? "selected" : ""}>${esc(models[id].name ?? id)}</option>`),
+      // wartość spoza zapisanych modeli OpenRoutera
+      current && !ids.some((id) => ref(id) === current) ? `<option selected disabled>${esc(current)}</option>` : "",
+    ].join("");
+  }
+
+  $("#saved").innerHTML = ids.length ? ids.map((id) => {
+    const e = models[id];
+    const order = e.options?.provider?.order;
+    const roles = ROLES.filter((r) => state.config[r.key] === ref(id))
+      .map((r) => `<span class="tag">${r.key === "model" ? "główny" : "pomocniczy"}</span>`).join("");
+    return `<button class="card ${state.editor?.id === id ? "active" : ""}" data-id="${esc(id)}">
+      <div class="top">${esc(e.name ?? id)} ${roles}</div>
+      <div class="mono">${esc(id)}</div>
+      <div class="meta">
+        <span>${order?.length ? esc(order.join(" → ")) : "automatycznie"}</span>
+        <span>${e.cost ? `${usd(e.cost.input)} / ${usd(e.cost.output)}` : ""}</span>
+      </div>
+    </button>`;
+  }).join("") : '<p class="muted" style="margin:0">Nie masz jeszcze modeli. Wybierz model z listy obok.</p>';
+}
+
+document.querySelector("aside").addEventListener("click", (e) => {
+  const card = e.target.closest(".card");
+  if (card) return openEditor(card.dataset.id);
+  if (e.target.closest("[data-act=catalog]")) showCatalog();
+});
+
+document.querySelector("aside").addEventListener("change", async (e) => {
+  const sel = e.target.closest("select[data-role]");
+  if (!sel) return;
+  const id = sel.value || null;
+  const label = sel.dataset.role === "model" ? "Główny model" : "Model pomocniczy";
+  await post({ action: "default", key: sel.dataset.role, id }, `${label}: ${id ? state.config.models[id]?.name ?? id : "nie ustawiono"}`);
+  renderAll();
+});
+
+// --- Katalog modeli ---
+
+const CATALOG_COLS = [
+  { key: "name", label: "Model", get: (m) => m.name },
+  { key: "ctx", label: "Kontekst", n: true, desc: true, get: (m) => m.context_length, title: "Ile tokenów model widzi naraz" },
+  { key: "in", label: "Wejście / 1M", n: true, get: (m) => per1M(m.pricing.prompt), title: "Cena za milion tokenów wysłanych do modelu (najtańszy provider)" },
+  { key: "out", label: "Wyjście / 1M", n: true, get: (m) => per1M(m.pricing.completion), title: "Cena za milion tokenów wygenerowanych przez model" },
+  { key: "created", label: "Dodano", n: true, desc: true, get: (m) => m.created },
+];
+
+function renderCatalog() {
+  const q = $("#q").value.trim().toLowerCase();
+  const toolsOnly = $("#tools-only").checked;
+  const rows = sortRows(
+    state.models
+      .filter((m) => !toolsOnly || m.supported_parameters?.includes("tools"))
+      .filter((m) => `${m.id} ${m.name}`.toLowerCase().includes(q)),
+    CATALOG_COLS, state.catalogSort,
+  );
+  $("#catalog").innerHTML = thead(CATALOG_COLS, state.catalogSort) + `<tbody>${rows.map((m) => `
+    <tr data-id="${esc(m.id)}">
+      <td>${esc(m.name)} ${state.config.models[m.id] ? '<span class="tag">zapisany</span>' : ""}<div class="mono">${esc(m.id)}</div></td>
+      <td class="n">${tok(m.context_length)}</td>
+      <td class="n">${usd(per1M(m.pricing.prompt))}</td>
+      <td class="n">${usd(per1M(m.pricing.completion))}</td>
+      <td class="n muted">${date(m.created)}</td>
+    </tr>`).join("") || '<tr><td colspan="5" class="empty">Brak wyników.</td></tr>'}</tbody>`;
+}
+
+$("#q").oninput = renderCatalog;
+$("#tools-only").onchange = renderCatalog;
+$("#catalog").onclick = (e) => {
+  const th = e.target.closest("th[data-sort]");
+  if (th) {
+    state.catalogSort = nextSort(CATALOG_COLS, state.catalogSort, th.dataset.sort);
+    return renderCatalog();
+  }
+  const tr = e.target.closest("tr[data-id]");
+  if (tr) openEditor(tr.dataset.id);
+};
+
+function showCatalog() {
+  state.editor = null;
+  $("#editor-view").hidden = true;
+  $("#catalog-view").hidden = false;
+  renderSide();
+  renderCatalog();
+  $("#q").focus();
+}
+
+// --- Edytor modelu ---
+
+const PROVIDER_COLS = [
+  { key: "provider", label: "Provider", get: (e) => e.provider_name },
+  { key: "quant", label: "Precyzja", get: (e) => e.quantization, title: "Kwantyzacja wag. bf16/fp8 ≈ pełna jakość, fp4 taniej i szybciej, ale może działać gorzej" },
+  { key: "in", label: "Wejście / 1M", n: true, get: (e) => per1M(e.pricing.prompt) },
+  { key: "out", label: "Wyjście / 1M", n: true, get: (e) => per1M(e.pricing.completion) },
+  { key: "cache", label: "Cache / 1M", n: true, get: (e) => per1M(e.pricing.input_cache_read), title: "Cena tokenów wejściowych odczytanych z cache — w długich sesjach to większość wejścia" },
+  { key: "ctx", label: "Kontekst", n: true, desc: true, get: (e) => e.context_length },
+  { key: "maxout", label: "Maks. odpowiedź", n: true, desc: true, get: (e) => e.max_completion_tokens },
+  { key: "uptime", label: "Dostępność 24h", n: true, desc: true, get: (e) => e.uptime_last_1d },
+];
+
+const pickedEndpoints = (ed) => ed.picked.map((t) => ed.endpoints.find((e) => e.tag === t)).filter(Boolean);
+const providerName = (ed, tag) => ed.endpoints.find((e) => e.tag === tag)?.provider_name ?? tag;
+
+function autoName(ed) {
+  const base = shortName(ed.model.name);
+  const eps = pickedEndpoints(ed);
+  if (ed.mode !== "pinned" || !eps.length) return base;
+  return `${base} — ${[...new Set(eps.map((e) => e.provider_name))].join(" → ")}`;
+}
+
+function costFrom(pricing) {
+  const input = per1M(pricing?.prompt), output = per1M(pricing?.completion);
+  if (input == null || output == null || input < 0 || output < 0) return null;
+  const cost = { input, output };
+  if (pricing.input_cache_read) cost.cache_read = per1M(pricing.input_cache_read);
+  if (pricing.input_cache_write) cost.cache_write = per1M(pricing.input_cache_write);
+  return cost;
+}
+
+const routePricing = (ed) => (ed.mode === "pinned" ? pickedEndpoints(ed)[0]?.pricing : null) ?? ed.model.pricing;
+
+function buildEntry(ed) {
+  let context, output, provider;
+  if (ed.mode === "pinned") {
+    const eps = pickedEndpoints(ed);
+    if (!eps.length) return null;
+    // Limity muszą pasować do każdego providera z listy, więc bierzemy minimum.
+    context = Math.min(...eps.map((e) => e.context_length));
+    output = Math.min(...eps.map((e) => e.max_completion_tokens ?? Math.min(e.context_length, OUTPUT_FALLBACK)));
+    provider = { order: [...ed.picked], allow_fallbacks: ed.fallbacks };
+  } else {
+    context = ed.model.context_length ?? ed.existing?.limit?.context;
+    if (!context) return null;
+    output = ed.model.top_provider?.max_completion_tokens ?? ed.existing?.limit?.output ?? Math.min(context, OUTPUT_FALLBACK);
+  }
+  return {
+    name: (ed.nameTouched && ed.name.trim()) || autoName(ed),
+    limit: { context, output },
+    cost: (ed.cost && costFrom(routePricing(ed))) || undefined,
+    provider,
+  };
+}
+
+async function openEditor(id) {
+  const model = state.byId.get(id) ?? { id, name: id, description: "", pricing: {} };
+  const existing = state.config.models[id];
+  const p = existing?.options?.provider;
+  const ed = state.editor = {
+    id, model, existing,
+    endpoints: [], missing: [],
+    loading: !isRouter(model),
+    error: null,
+    mode: p?.order?.length ? "pinned" : "auto",
+    picked: [...(p?.order ?? [])],
+    fallbacks: existing ? p?.allow_fallbacks ?? true : false,
+    cost: existing ? Boolean(existing.cost) : true,
+    roles: new Set(),
+    name: existing?.name ?? "",
+    nameTouched: false,
+    sort: { key: "in", dir: 1 },
+  };
+  $("#catalog-view").hidden = true;
+  $("#editor-view").hidden = false;
+  document.querySelector("main").scrollTop = 0;
+  renderSide();
+  renderEditor();
+
+  if (ed.loading) {
+    try {
+      ed.endpoints = (await api(`/api/endpoints?id=${encodeURIComponent(id)}`)).endpoints;
+    } catch (e) {
+      ed.error = e.message;
+    }
+    if (state.editor !== ed) return; // w międzyczasie otwarto inny model
+    ed.loading = false;
+    ed.missing = ed.picked.filter((t) => !ed.endpoints.some((e) => e.tag === t));
+    ed.picked = ed.picked.filter((t) => !ed.missing.includes(t));
+  }
+  ed.nameTouched = Boolean(existing?.name) && existing.name !== autoName(ed);
+  renderEditor();
+}
+
+function renderEditor() {
+  const ed = state.editor, m = ed.model;
+  const costKnown = Boolean(costFrom(routePricing(ed)));
+
+  $("#editor").innerHTML = `
+    <div>
+      <button class="link" data-act="back">← Wszystkie modele</button>
+      <h1 style="margin-top:10px">${esc(m.name)}</h1>
+      <div class="mono muted">${esc(m.id)}</div>
+      ${m.description ? `<p class="desc">${esc(m.description)}</p>` : ""}
+    </div>
+
+    <section class="panel">
+      <h2>Nazwa i rola</h2>
+      <label class="field">
+        <span>Nazwa widoczna w OpenCode</span>
+        <input type="text" id="name" value="${esc(ed.nameTouched ? ed.name : autoName(ed))}">
+      </label>
+      <div class="checks">
+        ${ROLES.map((r) => {
+          const active = state.config[r.key] === ref(ed.id);
+          return `<label class="check">
+            <input type="checkbox" data-role="${r.key}" ${active || ed.roles.has(r.key) ? "checked" : ""} ${active ? "disabled" : ""}>
+            <span><b>${r.label}</b><small>${active ? "Już ustawiony — zmienisz to w panelu po lewej" : r.hint}</small></span>
+          </label>`;
+        }).join("")}
+        <label class="check">
+          <input type="checkbox" id="cost" ${ed.cost && costKnown ? "checked" : ""} ${costKnown ? "" : "disabled"}>
+          <span><b>Licz koszt sesji</b><small>${costKnown
+            ? "Zapisuje ceny, żeby OpenCode pokazywał koszt. Nie wpływa na rachunek."
+            : "Cena jest zmienna, więc OpenCode nie policzy kosztu."}</small></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Kto obsługuje zapytania</h2>
+      ${isRouter(m)
+        ? `<p class="note" style="margin:0">To router OpenRoutera — przy każdym zapytaniu sam dobiera model i providera, więc nie ma tu czego przypinać.</p>`
+        : providersPanel(ed)}
+    </section>`;
+  renderSavebar();
+}
+
+function providersPanel(ed) {
+  if (ed.loading) return '<p class="muted" style="margin:0">Ładowanie providerów…</p>';
+  if (ed.error) return `<p class="note warn" style="margin:0">${esc(ed.error)}</p>`;
+  const mode = (value, title, text) => `
+    <label class="mode ${ed.mode === value ? "on" : ""}">
+      <input type="radio" name="mode" value="${value}" ${ed.mode === value ? "checked" : ""}>
+      <span><b>${title}</b><small>${text}</small></span>
+    </label>`;
+  const chips = ed.picked.map((t, i) => `${i ? '<span class="arrow">→</span>' : ""}
+    <span class="chip">${i + 1}. ${esc(providerName(ed, t))}<button data-unpick="${esc(t)}" title="Usuń">×</button></span>`).join("");
+
+  return `
+    <div class="modes">
+      ${mode("auto", "Automatycznie", "OpenRouter wybiera providera sam, biorąc pod uwagę cenę i dostępność.")}
+      ${mode("pinned", "Wybrani providerzy", "Zapytania idą tylko do zaznaczonych poniżej, w kolejności zaznaczania.")}
+    </div>
+    ${ed.missing.length ? `<p class="note warn">Tego providera z configu nie ma już w OpenRouter: ${esc(ed.missing.join(", "))}</p>` : ""}
+    ${ed.mode === "pinned" ? `
+      <div class="order">${chips || '<span class="muted">Kliknij providera w tabeli, żeby go dodać. Możesz wybrać kilku — kolejni będą zapasowi.</span>'}</div>
+      <label class="check">
+        <input type="checkbox" id="fallbacks" ${ed.fallbacks ? "checked" : ""}>
+        <span><b>Gdy wybrani nie odpowiadają, użyj innego providera</b>
+        <small>Wyłączone: OpenCode dostanie błąd, ale masz pewność ceny i jakości.</small></span>
+      </label>` : `<p class="muted" style="margin:0">Poniżej dostępni providerzy — kliknij wiersz, żeby przypiąć konkretnego.</p>`}
+    <table class="providers">
+      ${thead(PROVIDER_COLS, ed.sort, "<th></th>")}
+      <tbody>${sortRows(ed.endpoints, PROVIDER_COLS, ed.sort).map((e) => {
+        const i = ed.mode === "pinned" ? ed.picked.indexOf(e.tag) : -1;
+        return `<tr class="${i >= 0 ? "picked" : ""}" data-tag="${esc(e.tag)}">
+          <td style="width:32px"><span class="pick">${i >= 0 ? i + 1 : ""}</span></td>
+          <td>${esc(e.provider_name)}</td>
+          <td class="mono">${esc(e.quantization ?? "—")}</td>
+          <td class="n">${usd(per1M(e.pricing.prompt))}</td>
+          <td class="n">${usd(per1M(e.pricing.completion))}</td>
+          <td class="n">${usd(per1M(e.pricing.input_cache_read))}</td>
+          <td class="n">${tok(e.context_length)}</td>
+          <td class="n">${tok(e.max_completion_tokens)}</td>
+          <td class="n">${e.uptime_last_1d == null ? "—" : e.uptime_last_1d.toFixed(1) + "%"}</td>
+        </tr>`;
+      }).join("") || '<tr><td colspan="9" class="empty">OpenRouter nie zwrócił providerów dla tego modelu.</td></tr>'}</tbody>
+    </table>`;
+}
+
+function renderSavebar() {
+  const ed = state.editor;
+  const entry = ed.loading ? null : buildEntry(ed);
+  let summary;
+  if (ed.loading) summary = "Ładowanie…";
+  else if (!entry) summary = ed.mode === "pinned" ? "Wybierz co najmniej jednego providera." : "Brak danych o limitach modelu.";
+  else {
+    const route = ed.mode === "pinned"
+      ? pickedEndpoints(ed).map((e) => e.provider_name).join(" → ") + (ed.fallbacks ? ", potem dowolny" : ", bez zapasowych")
+      : "OpenRouter wybiera providera";
+    const price = entry.cost ? ` · ${usd(entry.cost.input)} / ${usd(entry.cost.output)} za 1M` : "";
+    summary = `<b>${esc(entry.name)}</b> · ${esc(route)}${price}`;
+  }
+  $("#savebar").innerHTML = `
+    <div class="summary">${summary}</div>
+    ${ed.existing ? '<button class="danger" data-act="remove">Usuń z configu</button>' : ""}
+    <button class="primary" data-act="save" ${entry ? "" : "disabled"}>${ed.existing ? "Zapisz zmiany" : "Dodaj do configu"}</button>`;
+}
+
+$("#editor-view").addEventListener("click", async (e) => {
+  const ed = state.editor;
+  if (!ed) return;
+  const act = e.target.closest("[data-act]")?.dataset.act;
+
+  if (act === "back") return showCatalog();
+
+  if (act === "save") {
+    const ok = await post(
+      { action: "save", id: ed.id, entry: buildEntry(ed), defaults: [...ed.roles] },
+      ed.existing ? "Zapisano zmiany" : "Dodano do configu",
+    );
+    if (ok) {
+      ed.existing = state.config.models[ed.id];
+      ed.roles.clear();
+      renderAll();
+    }
+    return;
+  }
+
+  if (act === "remove") {
+    const roles = ROLES.filter((r) => state.config[r.key] === ref(ed.id)).map((r) => r.key);
+    const warning = roles.length
+      ? `\n\nTen model jest ustawiony jako ${roles.join(" i ")} — OpenCode dalej go użyje, ale bez tych ustawień.`
+      : "";
+    if (confirm(`Usunąć „${ed.existing.name ?? ed.id}” z configu?${warning}`)
+      && (await post({ action: "remove", id: ed.id }, "Usunięto z configu"))) {
+      showCatalog();
+    }
+    return;
+  }
+
+  const unpick = e.target.closest("[data-unpick]");
+  if (unpick) {
+    ed.picked = ed.picked.filter((t) => t !== unpick.dataset.unpick);
+    return renderEditor();
+  }
+
+  const th = e.target.closest("th[data-sort]");
+  if (th) {
+    ed.sort = nextSort(PROVIDER_COLS, ed.sort, th.dataset.sort);
+    return renderEditor();
+  }
+
+  const tr = e.target.closest("tr[data-tag]");
+  if (tr) {
+    const tag = tr.dataset.tag;
+    if (ed.mode !== "pinned") {
+      ed.mode = "pinned";
+      ed.picked = [tag];
+    } else {
+      ed.picked = ed.picked.includes(tag) ? ed.picked.filter((t) => t !== tag) : [...ed.picked, tag];
+    }
+    renderEditor();
+  }
+});
+
+$("#editor-view").addEventListener("change", (e) => {
+  const ed = state.editor;
+  const t = e.target;
+  if (t.name === "mode") ed.mode = t.value;
+  else if (t.id === "fallbacks") ed.fallbacks = t.checked;
+  else if (t.id === "cost") ed.cost = t.checked;
+  else if (t.dataset.role) t.checked ? ed.roles.add(t.dataset.role) : ed.roles.delete(t.dataset.role);
+  else return;
+  renderEditor();
+});
+
+$("#editor-view").addEventListener("input", (e) => {
+  if (e.target.id !== "name") return;
+  const ed = state.editor;
+  ed.name = e.target.value;
+  ed.nameTouched = ed.name.trim() !== "";
+  renderSavebar();
+});
+
+// Puste pole nazwy wraca do nazwy automatycznej.
+$("#editor-view").addEventListener("focusout", (e) => {
+  if (e.target.id === "name" && state.editor && !state.editor.nameTouched) e.target.value = autoName(state.editor);
+});
+
+function renderAll() {
+  renderSide();
+  if (state.editor) renderEditor();
+  else renderCatalog();
+}
+
+// --- Start ---
+
+try {
+  [state.models, state.config] = await Promise.all([api("/api/models"), api("/api/config")]);
+  state.byId = new Map(state.models.map((m) => [m.id, m]));
+  renderSide();
+  renderCatalog();
+} catch (e) {
+  $("#catalog").innerHTML = `<tbody><tr><td class="empty">${esc(e.message)}</td></tr></tbody>`;
+}
+</script>
+</body>
+</html>

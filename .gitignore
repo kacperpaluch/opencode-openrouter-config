@@ -1,0 +1,12 @@
+node_modules/
+.DS_Store
+*.log
+*.bak
+
+# Lokalne ustawienia agentów (generowane, zawierają klucze API)
+.claude/
+.codex/
+.opencode/
+.skillbox/
+.mcp.json
+opencode.json
