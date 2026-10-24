@@ -44,7 +44,10 @@ async function readConfig() {
     : `{\n  "$schema": "https://opencode.ai/config.json"\n}\n`;
   const errors: ParseError[] = [];
   const json = parse(text, errors, { allowTrailingComma: true }) ?? {};
-  if (errors.length) throw new Error(`Nie mogę sparsować ${CONFIG_PATH} (offset ${errors[0].offset})`);
+  if (errors.length) {
+    const line = text.slice(0, errors[0].offset).split("\n").length;
+    throw new Error(`Nie mogę odczytać ${CONFIG_PATH}: błąd składni w linii ${line}`);
+  }
   return { text, json };
 }
 
@@ -95,7 +98,24 @@ function editsFor(body: any, json: any): Edit[] {
     case "remove":
       checkId(body.id);
       return [[modelPath(body.id), undefined]];
+    // Cofnięcie usunięcia: zapisuje cały poprzedni wpis.
+    case "restore":
+      checkId(body.id);
+      if (!body.entry || typeof body.entry !== "object") throw new Error("Brak wpisu do przywrócenia");
+      return [[modelPath(body.id), body.entry]];
+    // Hurtowa aktualizacja cen zapisanych modeli: { costs: { id: cost } }.
+    case "costs":
+      return Object.entries(body.costs ?? {}).map(([id, cost]): Edit => {
+        checkId(id);
+        if (!json.provider?.openrouter?.models?.[id]) throw new Error(`Modelu ${id} nie ma w configu`);
+        return [[...modelPath(id), "cost"], cost];
+      });
     case "default":
+      // `value` przywraca dokładną poprzednią wartość (także spoza OpenRoutera), `id` ustawia model OpenRoutera.
+      if ("value" in body) {
+        if (body.value !== null && typeof body.value !== "string") throw new Error("Niepoprawna wartość roli");
+        return [[defaultEdit(body.key, null)[0], body.value ?? undefined]];
+      }
       if (body.id !== null) checkId(body.id);
       return [defaultEdit(body.key, body.id)];
     default:

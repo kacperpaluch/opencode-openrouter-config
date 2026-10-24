@@ -49,14 +49,17 @@ Opcje:
   - **Główny model** (`model`): model, z którym rozmawiasz i który pisze kod.
   - **Model pomocniczy** (`small_model`): drobne zadania w tle, np. tytuły sesji. Warto ustawić coś taniego.
     Bez tego OpenCode sam wybiera model i może wziąć coś droższego.
+  Zmiana roli zapisuje się od razu. Przez kilka sekund widać przycisk **Cofnij**.
 - **Twoje modele**: modele OpenRoutera zapisane w configu. Kliknięcie otwiera edytor.
+  Znacznik „niezapisane” oznacza, że w edytorze tego modelu są zmiany, których jeszcze nie zapisano.
 - **+ Dodaj model**: powrót do katalogu.
 
 ### Katalog
 
 Lista wszystkich modeli OpenRoutera. Kliknij nagłówek kolumny, żeby posortować.
 Domyślnie widać tylko modele z obsługą narzędzi (tool calling). Bez tego model nie edytuje plików w OpenCode.
-Ceny w katalogu to ceny najtańszego providera.
+Ceny w katalogu to stawki, które OpenRouter podaje dla modelu. Konkretni providerzy bywają tańsi,
+a ich ceny widać dopiero w edytorze modelu.
 
 ### Edytor modelu
 
@@ -65,19 +68,38 @@ Ceny w katalogu to ceny najtańszego providera.
 2. **Kto obsługuje zapytania**:
    - **Automatycznie**: OpenRouter sam wybiera providera (cena + dostępność).
    - **Wybrani providerzy**: klikasz wiersze w tabeli. Kolejność kliknięć to kolejność prób:
-     pierwszy jest główny, kolejni zapasowi.
+     pierwszy jest główny, kolejni zapasowi. Strzałka `‹` na chipie przesuwa providera wcześniej.
+     Precyzja fp4/nvfp4/int4 jest wyróżniona kolorem, tak samo dostępność poniżej 99% (żółty) i 95% (czerwony).
+     Jeśli któryś z wybranych providerów ma mniejszy kontekst lub krótszą maksymalną odpowiedź,
+     jego komórka jest podświetlona. To on ustala limit dla całego wpisu.
      Opcja „Gdy wybrani nie odpowiadają, użyj innego providera” pozwala OpenRouterowi przełączyć się
      na dowolnego innego providera przy awarii. Wyłączona daje pewność ceny i jakości, ale przy awarii dostaniesz błąd.
    - **Routery** (`openrouter/free`, `openrouter/auto` itp.) same dobierają model i providera,
      więc nie ma tu czego wybierać.
 Po uruchomieniu aplikacja sprawdza ceny wszystkich zapisanych modeli. U góry lewej kolumny widać
 „Ceny bez zmian” albo listę modeli, które zdrożały, potaniały lub straciły przypiętego providera,
-a na kartach modeli strzałki ↑ / ↓ (po najechaniu widać kwoty).
+a na kartach modeli strzałki ↑ / ↓ (po najechaniu widać kwoty). Nazwy na liście otwierają edytor.
+Przycisk **Zaktualizuj ceny w configu** zapisuje nowe ceny wszystkich zmienionych modeli naraz.
+Jeśli sprawdzenie się nie udało (np. OpenRouter nie odpowiedział), lista to pokaże zamiast „Ceny bez zmian”.
 
 Jeśli provider zmienił cenę od ostatniego zapisu, edytor pokaże też ostrzeżenie (np. „wejście $0.04 → $0.06”).
 Wystarczy kliknąć **Zapisz zmiany**, żeby zaktualizować `cost`.
 
-3. **Pasek na dole** pokazuje, co zostanie zapisane. Tam są przyciski **Dodaj do configu** / **Zapisz zmiany** i **Usuń z configu**.
+3. **Pasek na dole** pokazuje, co zostanie zapisane: nazwę, providerów, cenę, kontekst i maksymalną odpowiedź
+   (z informacją, który provider je ogranicza). Pokazuje też, które pola zmieni zapis, albo kiedy ostatnio zapisano.
+   Tam są przyciski **Dodaj do configu** / **Zapisz zmiany** i **Usuń z configu**. Usunięcie można cofnąć przyciskiem **Cofnij**.
+   **Podgląd wpisu w configu** pod tabelą pokazuje dokładny JSON, który trafi do pliku.
+
+Przejście do innego modelu nie kasuje niezapisanych zmian. Po powrocie edytor jest w takim stanie, w jakim go zostawiono.
+
+### Skróty klawiszowe
+
+| Klawisz | Działanie |
+|---|---|
+| `/` | Wyszukiwanie w katalogu |
+| `↓` / `↑` | Przejście między wierszami tabeli (z pola wyszukiwania `↓` przechodzi do listy) |
+| `Enter` / `Spacja` | Otwarcie modelu albo zaznaczenie providera |
+| `Esc` | Powrót z edytora do katalogu |
 
 ### Kolumny tabeli providerów
 

@@ -4,37 +4,46 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OpenCode Models</title>
+<link rel="icon" href="data:,">
 <style>
   :root {
     --bg: #fff; --bg-soft: #f7f7f8; --fg: #18181b; --muted: #71717a; --line: #e4e4e7; --hover: #f4f4f5;
-    --accent: #2563eb; --accent-soft: #eff4ff; --accent-line: #bfd3fe; --danger: #dc2626; --warn-soft: #fef3c7; --warn: #92400e; --ok: #15803d;
+    --accent: #2563eb; --accent-fill: #2563eb; --accent-soft: #eff4ff; --accent-line: #bfd3fe;
+    --danger: #dc2626; --danger-soft: #fef2f2; --warn-soft: #fef3c7; --warn: #92400e; --ok: #15803d;
     color-scheme: light dark;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #111113; --bg-soft: #18181b; --fg: #ececee; --muted: #8b8b93; --line: #2a2a2e; --hover: #1d1d21;
-      --accent: #6b9bff; --accent-soft: #172036; --accent-line: #2c4170; --danger: #f87171; --warn-soft: #3a2a0c; --warn: #fbbf24; --ok: #4ade80;
+      --accent: #6b9bff; --accent-fill: #2f64e0; --accent-soft: #172036; --accent-line: #2c4170;
+      --danger: #f87171; --danger-soft: #2a1517; --warn-soft: #3a2a0c; --warn: #fbbf24; --ok: #4ade80;
     }
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
+  ::selection { background: var(--accent-line); }
+  html { scrollbar-color: var(--line) transparent; }
   body {
-    margin: 0; height: 100vh; display: grid; grid-template-columns: 320px 1fr;
+    margin: 0; height: 100vh; display: grid; grid-template-columns: 320px minmax(0, 1fr);
     font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     background: var(--bg); color: var(--fg);
   }
-  .mono { font: 11.5px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .mono { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
   .muted { color: var(--muted); }
   small { display: block; color: var(--muted); font-size: 12px; }
   h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
-  h2 { margin: 0 0 12px; font-size: 13px; font-weight: 600; }
+  h1:focus { outline: none; }
+  h2 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
   .label { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 
   input[type=text], input[type=search], select {
     width: 100%; font: inherit; color: inherit; background: var(--bg);
     border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
   }
-  input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input:focus-visible, select:focus-visible, button:focus-visible, tr:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 1px;
+  }
+  tr:focus-visible { outline-offset: -2px; }
   input[type=checkbox], input[type=radio] { accent-color: var(--accent); margin: 2px 0 0; }
   button {
     font: inherit; color: inherit; background: var(--bg); cursor: pointer;
@@ -42,11 +51,14 @@
   }
   button:hover:not(:disabled) { background: var(--hover); }
   button:disabled { opacity: .45; cursor: default; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
-  button.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.08); }
+  button.primary { background: var(--accent-fill); border-color: var(--accent-fill); color: #fff; font-weight: 500; }
+  button.primary:hover:not(:disabled) { background: var(--accent-fill); filter: brightness(1.08); }
   button.danger { color: var(--danger); }
-  button.link { border: 0; padding: 0; background: none; color: var(--muted); }
+  button.link { border: 0; padding: 0; background: none; color: var(--muted); text-align: left; }
   button.link:hover:not(:disabled) { background: none; color: var(--fg); }
+  button.inline { border: 0; padding: 0; background: none; color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+  button.inline:hover:not(:disabled) { background: none; color: var(--fg); }
+  button.small { padding: 4px 10px; font-size: 12px; }
 
   /* --- Lewa kolumna: config --- */
   aside { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); background: var(--bg-soft); }
@@ -63,51 +75,58 @@
   }
   .card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
   .card .top { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-weight: 500; }
-  .card .mono { margin-top: 2px; color: var(--muted); }
-  .card .meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; color: var(--muted); font-size: 12px; }
-  .tag { padding: 0 7px; border-radius: 99px; font-size: 11px; font-weight: 500; background: var(--accent-soft); color: var(--accent); }
-  .trend { margin-left: 6px; font-weight: 500; }
-  .up, .missing { color: var(--danger); }
+  .card .mono { margin-top: 2px; color: var(--muted); word-break: break-all; }
+  .card .meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px; margin-top: 6px; color: var(--muted); font-size: 12px; }
+  .tag { padding: 0 7px; border-radius: 99px; font-size: 11px; font-weight: 500; white-space: nowrap; background: var(--accent-soft); color: var(--accent); }
+  .tag.draft { background: var(--warn-soft); color: var(--warn); }
+  .trend { margin-left: 6px; font-weight: 500; white-space: nowrap; }
+  .up, .missing, .failed { color: var(--danger); }
   .down { color: var(--ok); }
   .mixed { color: var(--warn); }
-  .price-status { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--muted); }
-  .price-status div + div { margin-top: 2px; }
-  .price-status small { margin-top: 6px; }
+  .price-status { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--muted); }
+  .price-status .actions { display: grid; gap: 4px; margin-top: 6px; justify-items: start; }
+  .price-status .dot { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--ok); vertical-align: 1px; }
   .add { width: 100%; margin-top: 4px; border-style: dashed; color: var(--muted); }
 
   /* --- Prawa strona --- */
-  main { min-height: 0; overflow: auto; }
+  main { min-height: 0; min-width: 0; overflow: auto; }
+  .scroll { overflow-x: auto; }
   .catalog-head {
     position: sticky; top: 0; z-index: 2; background: var(--bg);
-    padding: 18px 28px 12px; border-bottom: 1px solid var(--line); display: grid; gap: 12px;
+    padding: 18px 28px 12px; border-bottom: 1px solid var(--line); display: grid; gap: 10px;
   }
-  .catalog-head .row { display: flex; gap: 16px; align-items: center; }
-  .catalog-head input[type=search] { max-width: 420px; }
+  .catalog-head .row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+  .catalog-head input[type=search] { flex: 1 1 260px; max-width: 420px; }
   .catalog-head label { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+  .catalog-head .count { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .catalog-head small { max-width: 80ch; }
 
   table { width: 100%; border-collapse: collapse; }
   th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
   th { font-size: 12px; font-weight: 500; color: var(--muted); }
-  th[data-sort] { cursor: pointer; user-select: none; }
-  th[data-sort]:hover, th.sorted { color: var(--fg); }
+  th .sort { border: 0; padding: 0; background: none; color: inherit; font: inherit; }
+  th .sort:hover:not(:disabled) { background: none; color: var(--fg); }
+  th.sorted { color: var(--fg); }
   .n { text-align: right; font-variant-numeric: tabular-nums; }
-  tbody tr { cursor: pointer; }
-  tbody tr:hover { background: var(--hover); }
+  tbody tr[tabindex] { cursor: pointer; }
+  tbody tr[tabindex]:hover { background: var(--hover); }
   .catalog { padding: 0 18px 24px; }
   .catalog td:first-child { white-space: normal; }
   .catalog .mono { color: var(--muted); }
+  .empty { padding: 24px 0; color: var(--muted); }
+  .error-box { margin: 24px 10px; padding: 14px 16px; border-radius: 10px; background: var(--danger-soft); color: var(--danger); display: grid; gap: 10px; justify-items: start; max-width: 70ch; }
 
   #editor-view { min-height: 100%; display: flex; flex-direction: column; }
-  .editor { flex: 1; padding: 18px 28px 24px; max-width: 1100px; display: grid; gap: 20px; align-content: start; }
+  .editor { flex: 1; padding: 18px 28px 24px; max-width: 1100px; min-width: 0; display: grid; gap: 20px; align-content: start; }
   .editor .desc { margin: 8px 0 0; max-width: 80ch; color: var(--muted); }
-  .panel { border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .panel { border: 1px solid var(--line); border-radius: 12px; padding: 18px; min-width: 0; }
   .field { display: grid; gap: 6px; max-width: 520px; margin-bottom: 16px; }
   .field span { font-weight: 500; }
   .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
   .check { display: flex; gap: 9px; align-items: flex-start; cursor: pointer; }
   .check b { font-weight: 500; }
   .check:has(input:disabled) { cursor: default; }
-  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin-bottom: 16px; }
   .mode { display: flex; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
   .mode.on { border-color: var(--accent-line); background: var(--accent-soft); }
   .mode b { font-weight: 500; }
@@ -116,35 +135,67 @@
   .order { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 14px; min-height: 28px; }
   .chip { display: inline-flex; gap: 2px; align-items: center; padding: 3px 4px 3px 10px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
   .chip button { border: 0; background: none; color: inherit; padding: 0 6px; line-height: 1; font-size: 15px; }
+  .chip button:hover:not(:disabled) { background: none; color: var(--fg); }
   .arrow { color: var(--muted); }
   .providers { margin-top: 16px; }
+  .legend { margin-top: 10px; }
   .pick {
     display: inline-grid; place-items: center; width: 20px; height: 20px;
-    border: 1.5px solid var(--line); border-radius: 6px; font-size: 11px; font-weight: 600;
+    border: 1.5px solid var(--muted); border-radius: 6px; font-size: 11px; font-weight: 600;
   }
   tr.picked, tr.picked:hover { background: var(--accent-soft); }
-  tr.picked .pick { background: var(--accent); border-color: var(--accent); color: #fff; }
+  tr.picked .pick { background: var(--accent-fill); border-color: var(--accent-fill); color: #fff; }
+  .low, .meh { color: var(--warn); }
+  .bad { color: var(--danger); }
+  td.limiting { color: var(--warn); font-weight: 600; }
+  details.panel summary { cursor: pointer; font-weight: 600; }
+  details.panel summary small { display: inline; font-weight: 400; margin-left: 6px; }
+  details.panel pre { margin: 14px 0 0; padding: 12px 14px; overflow-x: auto; border-radius: 8px; background: var(--bg-soft); }
 
   .savebar {
-    position: sticky; bottom: 0; z-index: 2; display: flex; gap: 10px; align-items: center;
+    position: sticky; bottom: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
     padding: 12px 28px; border-top: 1px solid var(--line); background: var(--bg);
   }
-  .savebar .summary { flex: 1; min-width: 0; color: var(--muted); }
+  .savebar .summary { flex: 1 1 320px; min-width: 0; color: var(--muted); }
   .savebar .summary b { color: var(--fg); font-weight: 500; }
-  .empty { padding: 24px 0; color: var(--muted); }
+  .savebar .sub { font-size: 12px; }
+  .savebar .dirty { color: var(--warn); font-weight: 500; }
+  .savebar .done { color: var(--ok); }
   .toast {
-    position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 5;
-    padding: 8px 14px; border-radius: 8px; background: var(--fg); color: var(--bg);
-    opacity: 0; transition: opacity .2s; pointer-events: none;
+    position: fixed; left: 50%; bottom: 104px; transform: translateX(-50%); z-index: 5;
+    display: flex; gap: 14px; align-items: center; max-width: min(640px, calc(100vw - 32px));
+    padding: 8px 10px 8px 14px; border-radius: 8px; background: var(--fg); color: var(--bg);
+    box-shadow: 0 6px 24px rgb(0 0 0 / .18);
+    opacity: 0; visibility: hidden; transition: opacity .2s, visibility .2s;
   }
-  .toast.show { opacity: 1; }
+  .toast.show { opacity: 1; visibility: visible; }
+  .toast.error { background: #b91c1c; color: #fff; }
+  .toast button { padding: 3px 10px; border: 0; background: rgb(255 255 255 / .16); color: inherit; font-weight: 500; }
+  .toast button:hover:not(:disabled) { background: rgb(255 255 255 / .28); }
+  .toast:not(:has(button)) { padding-right: 14px; }
+
+  @media (prefers-color-scheme: dark) {
+    .toast:not(.error) button { background: rgb(0 0 0 / .1); }
+    .toast:not(.error) button:hover:not(:disabled) { background: rgb(0 0 0 / .2); }
+  }
+  @media (max-width: 1100px) {
+    body { grid-template-columns: 272px minmax(0, 1fr); }
+    .catalog-head, .editor, .savebar { padding-left: 20px; padding-right: 20px; }
+    .catalog { padding: 0 10px 24px; }
+  }
+  @media (max-width: 720px) {
+    body { display: block; height: auto; }
+    aside { border-right: 0; border-bottom: 1px solid var(--line); }
+    main { overflow: visible; }
+    .catalog-head, .editor, .savebar { padding-left: 16px; padding-right: 16px; }
+  }
 </style>
 </head>
 <body>
 <aside>
   <div class="brand">
     <b>OpenCode Models</b>
-    <span class="mono" id="cfg-path"></span>
+    <span class="mono" id="cfg-path" title="Plik configu OpenCode. Przed każdym zapisem powstaje kopia .bak"></span>
   </div>
   <div class="side">
     <div class="price-status" id="price-status" hidden></div>
@@ -152,16 +203,17 @@
       <p class="label">Role</p>
       <label class="role">
         <span><b>Główny model</b><small>Rozmowa, pisanie kodu, narzędzia</small></span>
-        <select data-role="model"></select>
+        <select data-role="model" disabled><option>Ładowanie…</option></select>
       </label>
       <label class="role">
         <span><b>Model pomocniczy</b><small>Tytuły sesji i inne drobne zadania w tle</small></span>
-        <select data-role="small_model"></select>
+        <select data-role="small_model" disabled><option>Ładowanie…</option></select>
       </label>
+      <small>Zmiana roli zapisuje się od razu. Można ją cofnąć.</small>
     </section>
     <section>
       <p class="label">Twoje modele</p>
-      <div class="saved" id="saved"></div>
+      <div class="saved" id="saved"><p class="muted" style="margin:0">Ładowanie configu…</p></div>
       <button class="add" data-act="catalog">+ Dodaj model</button>
     </section>
   </div>
@@ -172,20 +224,22 @@
     <div class="catalog-head">
       <h1>Dodaj model</h1>
       <div class="row">
-        <input type="search" id="q" placeholder="Szukaj, np. glm, claude, qwen…" autofocus>
+        <input type="search" id="q" placeholder="Szukaj, np. glm, claude, qwen… (skrót /)" aria-label="Szukaj modelu" autofocus>
         <label title="OpenCode potrzebuje tool calling do edycji plików i uruchamiania komend">
           <input type="checkbox" id="tools-only" checked> tylko z obsługą narzędzi
         </label>
+        <span class="muted count" id="count" aria-live="polite"></span>
       </div>
+      <small>Ceny to stawki OpenRoutera dla modelu. Konkretni providerzy bywają tańsi; porównasz ich po kliknięciu modelu.</small>
     </div>
-    <div class="catalog"><table id="catalog"></table></div>
+    <div class="catalog scroll"><table id="catalog"><tbody><tr><td class="empty">Ładowanie katalogu z OpenRoutera…</td></tr></tbody></table></div>
   </div>
   <div id="editor-view" hidden>
     <div class="editor" id="editor"></div>
     <div class="savebar" id="savebar"></div>
   </div>
 </main>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script type="module">
 const $ = (s) => document.querySelector(s);
@@ -194,15 +248,19 @@ const per1M = (v) => (v == null || v === "" ? null : Number((parseFloat(v) * 1e6
 const usd = (v) => (v == null ? "—" : v < 0 ? "zmienna" : v === 0 ? "za darmo" : "$" + (v < 0.1 ? +v.toFixed(4) : +v.toFixed(2)));
 const tok = (n) => (n == null ? "—" : n >= 1e6 ? +(n / 1e6).toFixed(2) + "M" : n >= 1e3 ? Math.round(n / 1e3) + "k" : String(n));
 const date = (s) => new Date(s * 1000).toLocaleDateString("pl-PL", { day: "numeric", month: "short", year: "numeric" });
+const time = (d) => d.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
 const shortName = (name) => name.replace(/^[^:]+:\s*/, "");
 const ref = (id) => `openrouter/${id}`;
 // Routery (openrouter/free, openrouter/auto…) same wybierają model i providera.
 const isRouter = (m) => m.id.startsWith("openrouter/") || m.architecture?.tokenizer === "Router";
 const OUTPUT_FALLBACK = 32768; // gdy OpenRouter nie podaje limitu odpowiedzi
+const ENDPOINTS_TTL = 5 * 60_000; // jak cache na serwerze
+// Mocna kwantyzacja: taniej i szybciej, ale model może działać gorzej.
+const LOW_PRECISION = /^(fp4|nvfp4|mxfp4|int4)$/;
 
 const ROLES = [
-  { key: "model", label: "Ustaw jako główny model", hint: "Rozmowa, pisanie kodu, narzędzia" },
-  { key: "small_model", label: "Ustaw jako model pomocniczy", hint: "Tytuły sesji i drobne zadania" },
+  { key: "model", label: "Ustaw jako główny model", hint: "Rozmowa, pisanie kodu, narzędzia", short: "główny model", tag: "główny" },
+  { key: "small_model", label: "Ustaw jako model pomocniczy", hint: "Tytuły sesji i drobne zadania", short: "model pomocniczy", tag: "pomocniczy" },
 ];
 
 const state = {
@@ -211,7 +269,11 @@ const state = {
   config: null,
   catalogSort: { key: "created", dir: -1 },
   editor: null,
-  prices: null, // id → { status: ok|up|down|mixed|missing, diff }
+  drafts: new Map(), // id → edytor z niezapisanymi zmianami
+  endpoints: new Map(), // id → { at, data }
+  lastSave: null, // { id, at }
+  jsonOpen: false,
+  prices: null, // id → { status: ok|up|down|mixed|missing|failed, diff, now }
 };
 
 async function api(path, body) {
@@ -227,21 +289,40 @@ async function api(path, body) {
   return data;
 }
 
-function toast(msg) {
-  const t = $("#toast");
-  t.textContent = msg;
-  t.classList.add("show");
-  clearTimeout(t.timer);
-  t.timer = setTimeout(() => t.classList.remove("show"), 2500);
+async function endpointsOf(id, fresh = false) {
+  const hit = state.endpoints.get(id);
+  if (!fresh && hit && Date.now() - hit.at < ENDPOINTS_TTL) return hit.data;
+  const data = (await api(`/api/endpoints?id=${encodeURIComponent(id)}`)).endpoints;
+  state.endpoints.set(id, { at: Date.now(), data });
+  return data;
 }
 
-async function post(body, msg) {
+// Komunikat na dole ekranu. Błędy zostają do zamknięcia, akcja (np. „Cofnij”) wydłuża czas.
+function toast(msg, { action, error } = {}) {
+  const t = $("#toast");
+  const hide = () => t.classList.remove("show");
+  t.className = `toast show${error ? " error" : ""}`;
+  t.setAttribute("role", error ? "alert" : "status");
+  t.innerHTML = `<span>${esc(msg)}</span>
+    ${action ? `<button data-toast="act">${esc(action.label)}</button>` : ""}
+    ${error ? '<button data-toast="close" aria-label="Zamknij">×</button>' : ""}`;
+  t.onclick = (e) => {
+    const b = e.target.closest("[data-toast]");
+    if (!b) return;
+    hide();
+    if (b.dataset.toast === "act") action.run();
+  };
+  clearTimeout(t.timer);
+  if (!error) t.timer = setTimeout(hide, action ? 8000 : 3000);
+}
+
+async function post(body, msg, opts) {
   try {
     state.config = await api("/api/config", body);
-    toast(msg);
+    if (msg) toast(msg, opts);
     return true;
   } catch (e) {
-    toast(`Błąd: ${e.message}`);
+    toast(`Nie zapisano: ${e.message}`, { error: true });
     return false;
   }
 }
@@ -259,20 +340,53 @@ function sortRows(rows, cols, { key, dir }) {
 const nextSort = (cols, current, key) =>
   current.key === key ? { key, dir: -current.dir } : { key, dir: cols.find((c) => c.key === key).desc ? -1 : 1 };
 
-const thead = (cols, sort, first = "") => `<thead><tr>${first}${cols.map((c) => `
-  <th class="${c.n ? "n" : ""} ${sort.key === c.key ? "sorted" : ""}" data-sort="${c.key}" ${c.title ? `title="${esc(c.title)}"` : ""}>
-    ${c.label}${sort.key === c.key ? (sort.dir > 0 ? " ↑" : " ↓") : ""}
-  </th>`).join("")}</tr></thead>`;
+const thead = (cols, sort, first = "") => `<thead><tr>${first}${cols.map((c) => {
+  const on = sort.key === c.key;
+  return `<th class="${c.n ? "n" : ""} ${on ? "sorted" : ""}" ${on ? `aria-sort="${sort.dir > 0 ? "ascending" : "descending"}"` : ""}>
+    <button class="sort" data-sort="${c.key}" ${c.title ? `title="${esc(c.title)}"` : ""}>${c.label}${on ? (sort.dir > 0 ? " ↑" : " ↓") : ""}</button>
+  </th>`;
+}).join("")}</tr></thead>`;
+
+// Przerysowanie przez innerHTML gubi fokus — przywracamy go na odpowiednik tego samego elementu.
+function keepFocus(container, render) {
+  const el = document.activeElement;
+  let sel = null;
+  if (el && container.contains(el)) {
+    if (el.id) sel = `#${CSS.escape(el.id)}`;
+    else if (el.name === "mode") sel = `input[name=mode][value="${CSS.escape(el.value)}"]`;
+    else {
+      const attr = ["tag", "id", "sort", "role", "unpick", "move", "act"].find((a) => el.dataset[a] != null);
+      if (attr) sel = `[data-${attr}="${CSS.escape(el.dataset[attr])}"]`;
+    }
+  }
+  render();
+  if (sel) container.querySelector(sel)?.focus();
+}
+
+// Nazwa providera; przy kilku endpointach tego samego providera dopisuje wariant z tagu (np. „InferenceNet · us”).
+function providerParts(endpoints, tag) {
+  const ep = endpoints?.find((e) => e.tag === tag);
+  if (!ep) return { name: tag, variant: "" };
+  const dup = endpoints.some((e) => e !== ep && e.provider_name === ep.provider_name);
+  return { name: ep.provider_name, variant: dup ? tag.split("/").slice(1).join("/") : "" };
+}
+
+const providerLabel = (endpoints, tag) => {
+  const { name, variant } = providerParts(endpoints, tag);
+  return variant ? `${name} · ${variant}` : name;
+};
 
 // --- Lewa kolumna: role i zapisane modele ---
 
 function renderSide() {
+  if (!state.config) return;
   const { path, models } = state.config;
   const ids = Object.keys(models);
   $("#cfg-path").textContent = path.replace(/^\/Users\/[^/]+/, "~");
 
   for (const sel of document.querySelectorAll("select[data-role]")) {
     const current = state.config[sel.dataset.role];
+    sel.disabled = false;
     sel.innerHTML = [
       `<option value="">— nie ustawiono (OpenCode wybierze sam) —</option>`,
       ...ids.map((id) => `<option value="${esc(id)}" ${current === ref(id) ? "selected" : ""}>${esc(models[id].name ?? id)}</option>`),
@@ -284,13 +398,15 @@ function renderSide() {
   $("#saved").innerHTML = ids.length ? ids.map((id) => {
     const e = models[id];
     const order = e.options?.provider?.order;
+    const eps = state.endpoints.get(id)?.data;
     const roles = ROLES.filter((r) => state.config[r.key] === ref(id))
-      .map((r) => `<span class="tag">${r.key === "model" ? "główny" : "pomocniczy"}</span>`).join("");
+      .map((r) => `<span class="tag">${r.tag}</span>`).join("");
+    const draft = state.drafts.has(id) ? '<span class="tag draft">niezapisane</span>' : "";
     return `<button class="card ${state.editor?.id === id ? "active" : ""}" data-id="${esc(id)}">
-      <div class="top">${esc(e.name ?? id)} ${roles}</div>
+      <div class="top">${esc(e.name ?? id)} ${roles} ${draft}</div>
       <div class="mono">${esc(id)}</div>
       <div class="meta">
-        <span>${order?.length ? esc(order.join(" → ")) : "automatycznie"}</span>
+        <span>${order?.length ? esc(order.map((t) => providerLabel(eps, t)).join(" → ")) : "automatycznie"}</span>
         <span>${e.cost ? `${usd(e.cost.input)} / ${usd(e.cost.output)}` : ""}${trendBadge(id)}</span>
       </div>
     </button>`;
@@ -304,25 +420,27 @@ const TRENDS = {
   up: ["↑ drożej", "Drożej"],
   down: ["↓ taniej", "Taniej"],
   mixed: ["↕ zmiana ceny", "Zmiana ceny"],
-  missing: ["⚠ brak providera", "Provider niedostępny"],
+  missing: ["brak providera", "Provider niedostępny"],
+  failed: ["nie sprawdzono", "Nie udało się sprawdzić"],
 };
 
 // Porównuje zapisany `cost` z aktualną ceną pierwszego providera (albo ceną modelu w trybie auto).
-async function checkPrices() {
+async function checkPrices(fresh = false) {
   const results = await Promise.all(Object.entries(state.config.models).filter(([, e]) => e.cost).map(async ([id, e]) => {
     const tag = e.options?.provider?.order?.[0];
     let pricing = state.byId.get(id)?.pricing;
     if (tag) {
-      const endpoints = await api(`/api/endpoints?id=${encodeURIComponent(id)}`).then((d) => d.endpoints, () => null);
-      if (!endpoints) return null;
+      const endpoints = await endpointsOf(id, fresh).catch(() => null);
+      if (!endpoints) return [id, { status: "failed" }];
       const ep = endpoints.find((x) => x.tag === tag);
       if (!ep) return [id, { status: "missing", tag }];
       pricing = ep.pricing;
-    }
-    const diff = costDiff(e.cost, costFrom(pricing));
-    return [id, { status: diff.length ? trendOf(diff) : "ok", diff }];
+    } else if (!pricing) return [id, { status: "failed" }];
+    const now = costFrom(pricing);
+    const diff = costDiff(e.cost, now);
+    return [id, { status: diff.length ? trendOf(diff) : "ok", diff, now }];
   }));
-  state.prices = Object.fromEntries(results.filter(Boolean));
+  state.prices = Object.fromEntries(results);
   renderSide();
 }
 
@@ -331,9 +449,14 @@ const trendOf = (diff) => (diff.every((d) => d.to > d.from) ? "up" : diff.every(
 function trendBadge(id) {
   const p = state.prices?.[id];
   if (!p || p.status === "ok") return "";
-  const title = p.status === "missing" ? `Providera ${p.tag} nie ma już w OpenRouter` : diffText(p.diff);
+  const title = p.status === "missing" ? `Providera ${p.tag} nie ma już w OpenRouter`
+    : p.status === "failed" ? "OpenRouter nie odpowiedział — cena nie została sprawdzona"
+    : diffText(p.diff);
   return `<span class="trend ${p.status}" title="${esc(title)}">${TRENDS[p.status][0]}</span>`;
 }
+
+const changedPrices = () => Object.keys(state.prices ?? {})
+  .filter((id) => state.config.models[id] && ["up", "down", "mixed"].includes(state.prices[id].status));
 
 function renderPriceStatus() {
   const el = $("#price-status");
@@ -341,27 +464,59 @@ function renderPriceStatus() {
   el.hidden = !Object.values(models).some((e) => e.cost);
   if (el.hidden) return;
   if (!state.prices) return (el.textContent = "Sprawdzam ceny…");
+  const ofStatus = (status) => Object.keys(state.prices).filter((id) => models[id] && state.prices[id].status === status);
   const lines = Object.entries(TRENDS).map(([status, [, label]]) => {
-    const ids = Object.keys(state.prices).filter((id) => models[id] && state.prices[id].status === status);
-    return ids.length ? `<div><b class="${status}">${label}:</b> ${ids.map((id) => esc(models[id].name ?? id)).join(", ")}</div>` : "";
+    const ids = ofStatus(status);
+    return ids.length ? `<div><b class="${status}">${label}:</b> ${ids.map((id) =>
+      `<button class="inline" data-id="${esc(id)}">${esc(models[id].name ?? id)}</button>`).join(", ")}</div>` : "";
   }).join("");
-  el.innerHTML = lines
-    ? `${lines}<small>Otwórz model i zapisz, żeby zaktualizować cenę w configu.</small>`
-    : '<span class="down">✓</span> Ceny bez zmian od ostatniego zapisu';
+  if (!lines) {
+    el.innerHTML = '<span><span class="dot"></span>Ceny bez zmian od ostatniego zapisu</span>';
+    return;
+  }
+  const changed = changedPrices().length;
+  el.innerHTML = `${lines}<div class="actions">
+    ${changed ? `<button class="small" data-act="update-costs">Zaktualizuj ceny w configu (${changed})</button>
+      <small>Nowe ceny trafią tylko do licznika kosztów w OpenCode.</small>` : ""}
+    ${ofStatus("missing").length ? "<small>Przy braku providera otwórz model i wybierz innego.</small>" : ""}
+    ${ofStatus("failed").length ? '<button class="link" data-act="recheck">Sprawdź ceny ponownie</button>' : ""}
+  </div>`;
 }
 
-document.querySelector("aside").addEventListener("click", (e) => {
-  const card = e.target.closest(".card");
+document.querySelector("aside").addEventListener("click", async (e) => {
+  if (!state.config) return;
+  const card = e.target.closest("[data-id]");
   if (card) return openEditor(card.dataset.id);
-  if (e.target.closest("[data-act=catalog]")) showCatalog();
+  const act = e.target.closest("[data-act]")?.dataset.act;
+  if (act === "catalog") showCatalog();
+  if (act === "recheck") {
+    state.prices = null;
+    renderPriceStatus();
+    checkPrices(true);
+  }
+  if (act === "update-costs") {
+    const ids = changedPrices();
+    const costs = Object.fromEntries(ids.map((id) => [id, state.prices[id].now]));
+    if (await post({ action: "costs", costs }, ids.length === 1 ? "Zaktualizowano cenę 1 modelu" : `Zaktualizowano ceny ${ids.length} modeli`)) {
+      for (const id of ids) state.prices[id] = { status: "ok", diff: [], now: costs[id] };
+      if (state.editor && ids.includes(state.editor.id)) state.editor.existing = state.config.models[state.editor.id];
+      renderAll();
+    }
+  }
 });
 
 document.querySelector("aside").addEventListener("change", async (e) => {
   const sel = e.target.closest("select[data-role]");
   if (!sel) return;
+  const key = sel.dataset.role;
+  const prev = state.config[key];
   const id = sel.value || null;
-  const label = sel.dataset.role === "model" ? "Główny model" : "Model pomocniczy";
-  await post({ action: "default", key: sel.dataset.role, id }, `${label}: ${id ? state.config.models[id]?.name ?? id : "nie ustawiono"}`);
+  const label = key === "model" ? "Główny model" : "Model pomocniczy";
+  const undo = async () => {
+    if (await post({ action: "default", key, value: prev }, `${label}: przywrócono poprzedni`)) renderAll();
+  };
+  await post({ action: "default", key, id }, `${label}: ${id ? state.config.models[id]?.name ?? id : "nie ustawiono"}`,
+    { action: { label: "Cofnij", run: undo } });
   renderAll();
 });
 
@@ -370,12 +525,14 @@ document.querySelector("aside").addEventListener("change", async (e) => {
 const CATALOG_COLS = [
   { key: "name", label: "Model", get: (m) => m.name },
   { key: "ctx", label: "Kontekst", n: true, desc: true, get: (m) => m.context_length, title: "Ile tokenów model widzi naraz" },
-  { key: "in", label: "Wejście / 1M", n: true, get: (m) => per1M(m.pricing.prompt), title: "Cena za milion tokenów wysłanych do modelu (najtańszy provider)" },
-  { key: "out", label: "Wyjście / 1M", n: true, get: (m) => per1M(m.pricing.completion), title: "Cena za milion tokenów wygenerowanych przez model" },
+  { key: "in", label: "Wejście / 1M", n: true, get: (m) => per1M(m.pricing.prompt), title: "Cena OpenRoutera za milion tokenów wysłanych do modelu. U konkretnych providerów bywa niższa" },
+  { key: "out", label: "Wyjście / 1M", n: true, get: (m) => per1M(m.pricing.completion), title: "Cena OpenRoutera za milion tokenów wygenerowanych przez model" },
+  { key: "cache", label: "Cache / 1M", n: true, get: (m) => per1M(m.pricing.input_cache_read), title: "Cena tokenów wejściowych odczytanych z cache — w długich sesjach to większość wejścia" },
   { key: "created", label: "Dodano", n: true, desc: true, get: (m) => m.created },
 ];
 
 function renderCatalog() {
+  if (!state.config) return;
   const q = $("#q").value.trim().toLowerCase();
   const toolsOnly = $("#tools-only").checked;
   const rows = sortRows(
@@ -384,22 +541,36 @@ function renderCatalog() {
       .filter((m) => `${m.id} ${m.name}`.toLowerCase().includes(q)),
     CATALOG_COLS, state.catalogSort,
   );
-  $("#catalog").innerHTML = thead(CATALOG_COLS, state.catalogSort) + `<tbody>${rows.map((m) => `
-    <tr data-id="${esc(m.id)}">
-      <td>${esc(m.name)} ${state.config.models[m.id] ? '<span class="tag">zapisany</span>' : ""}<div class="mono">${esc(m.id)}</div></td>
-      <td class="n">${tok(m.context_length)}</td>
-      <td class="n">${usd(per1M(m.pricing.prompt))}</td>
-      <td class="n">${usd(per1M(m.pricing.completion))}</td>
-      <td class="n muted">${date(m.created)}</td>
-    </tr>`).join("") || '<tr><td colspan="5" class="empty">Brak wyników.</td></tr>'}</tbody>`;
+  $("#count").textContent = `${rows.length} ${plural(rows.length, "model", "modele", "modeli")}`;
+  keepFocus($("#catalog"), () => {
+    $("#catalog").innerHTML = thead(CATALOG_COLS, state.catalogSort) + `<tbody>${rows.map((m, i) => `
+      <tr data-id="${esc(m.id)}" tabindex="${i ? -1 : 0}">
+        <td>${esc(m.name)} ${state.config.models[m.id] ? '<span class="tag">zapisany</span>' : ""}
+          ${state.drafts.has(m.id) ? '<span class="tag draft">niezapisany</span>' : ""}<div class="mono">${esc(m.id)}</div></td>
+        <td class="n">${tok(m.context_length)}</td>
+        <td class="n">${usd(per1M(m.pricing.prompt))}</td>
+        <td class="n">${usd(per1M(m.pricing.completion))}</td>
+        <td class="n">${usd(per1M(m.pricing.input_cache_read))}</td>
+        <td class="n muted">${date(m.created)}</td>
+      </tr>`).join("") || `<tr><td colspan="6" class="empty">Brak wyników${q ? ` dla „${esc(q)}”` : ""}.${toolsOnly
+        ? ' <button class="inline" data-act="all-models">Pokaż też modele bez obsługi narzędzi</button>' : ""}</td></tr>`}</tbody>`;
+  });
 }
+
+const plural = (n, one, few, many) =>
+  n === 1 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many;
 
 $("#q").oninput = renderCatalog;
 $("#tools-only").onchange = renderCatalog;
 $("#catalog").onclick = (e) => {
-  const th = e.target.closest("th[data-sort]");
+  if (!state.config) return;
+  const th = e.target.closest("[data-sort]");
   if (th) {
     state.catalogSort = nextSort(CATALOG_COLS, state.catalogSort, th.dataset.sort);
+    return renderCatalog();
+  }
+  if (e.target.closest("[data-act=all-models]")) {
+    $("#tools-only").checked = false;
     return renderCatalog();
   }
   const tr = e.target.closest("tr[data-id]");
@@ -407,6 +578,7 @@ $("#catalog").onclick = (e) => {
 };
 
 function showCatalog() {
+  stashDraft();
   state.editor = null;
   $("#editor-view").hidden = true;
   $("#catalog-view").hidden = false;
@@ -429,7 +601,7 @@ const PROVIDER_COLS = [
 ];
 
 const pickedEndpoints = (ed) => ed.picked.map((t) => ed.endpoints.find((e) => e.tag === t)).filter(Boolean);
-const providerName = (ed, tag) => ed.endpoints.find((e) => e.tag === tag)?.provider_name ?? tag;
+const providerName = (ed, tag) => providerLabel(ed.endpoints, tag);
 
 function autoName(ed) {
   const base = shortName(ed.model.name);
@@ -467,37 +639,99 @@ function priceChanges(ed) {
 
 const routePricing = (ed) => (ed.mode === "pinned" ? pickedEndpoints(ed)[0]?.pricing : null) ?? ed.model.pricing;
 
-function buildEntry(ed) {
-  let context, output, provider;
+const epOutput = (e) => e.max_completion_tokens ?? Math.min(e.context_length, OUTPUT_FALLBACK);
+
+// Limity muszą pasować do każdego providera z listy, więc bierzemy minimum i zapamiętujemy, kto je obniża.
+function limitsOf(ed) {
   if (ed.mode === "pinned") {
     const eps = pickedEndpoints(ed);
     if (!eps.length) return null;
-    // Limity muszą pasować do każdego providera z listy, więc bierzemy minimum.
-    context = Math.min(...eps.map((e) => e.context_length));
-    output = Math.min(...eps.map((e) => e.max_completion_tokens ?? Math.min(e.context_length, OUTPUT_FALLBACK)));
-    provider = { order: [...ed.picked], allow_fallbacks: ed.fallbacks };
-  } else {
-    context = ed.model.context_length ?? ed.existing?.limit?.context;
-    if (!context) return null;
-    output = ed.model.top_provider?.max_completion_tokens ?? ed.existing?.limit?.output ?? Math.min(context, OUTPUT_FALLBACK);
+    const lowest = (f) => eps.reduce((a, b) => (f(b) < f(a) ? b : a));
+    const c = lowest((e) => e.context_length), o = lowest(epOutput);
+    return {
+      context: c.context_length,
+      output: epOutput(o),
+      ctxBy: eps.some((e) => e.context_length > c.context_length) ? c : null,
+      outBy: eps.some((e) => epOutput(e) > epOutput(o)) ? o : null,
+    };
   }
+  const context = ed.model.context_length ?? ed.existing?.limit?.context;
+  if (!context) return null;
+  const output = ed.model.top_provider?.max_completion_tokens ?? ed.existing?.limit?.output ?? Math.min(context, OUTPUT_FALLBACK);
+  return { context, output };
+}
+
+function buildEntry(ed) {
+  const lim = limitsOf(ed);
+  if (!lim) return null;
   return {
     name: (ed.nameTouched && ed.name.trim()) || autoName(ed),
-    limit: { context, output },
+    limit: { context: lim.context, output: lim.output },
     cost: (ed.cost && costFrom(routePricing(ed))) || undefined,
-    provider,
+    provider: ed.mode === "pinned" ? { order: [...ed.picked], allow_fallbacks: ed.fallbacks } : undefined,
   };
 }
 
+// Porównanie niezależne od kolejności kluczy w configu.
+const stable = (v) => JSON.stringify(v, (k, x) => (x && typeof x === "object" && !Array.isArray(x)
+  ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a.localeCompare(b))) : x));
+
+const CHANGE_FIELDS = [["name", "nazwa"], ["limit", "limity"], ["cost", "ceny"], ["provider", "providerzy"]];
+
+// Co zmieni zapis względem configu. Dla nowego modelu: null.
+function pendingChanges(ed, entry = buildEntry(ed)) {
+  if (!ed.existing || !entry) return null;
+  const p = ed.existing.options?.provider;
+  const saved = {
+    name: ed.existing.name,
+    limit: ed.existing.limit,
+    cost: ed.existing.cost,
+    provider: p?.order?.length ? { order: p.order, allow_fallbacks: p.allow_fallbacks ?? true } : undefined,
+  };
+  const out = CHANGE_FIELDS.filter(([k]) => stable(entry[k]) !== stable(saved[k])).map(([, label]) => label);
+  if (ed.roles.size) out.push("rola");
+  return out;
+}
+
+// Wychodząc z edytora, zachowaj niezapisane zmiany jako szkic.
+function stashDraft() {
+  const ed = state.editor;
+  if (!ed) return;
+  const changes = ed.loading ? null : pendingChanges(ed);
+  if (ed.touched && !ed.loading && (!ed.existing || changes?.length)) state.drafts.set(ed.id, ed);
+  else state.drafts.delete(ed.id);
+}
+
+const hasUnsaved = () => {
+  stashDraft();
+  return state.drafts.size > 0;
+};
+
+addEventListener("beforeunload", (e) => {
+  if (hasUnsaved()) e.preventDefault();
+});
+
 async function openEditor(id) {
+  if (state.editor?.id === id) return;
+  stashDraft();
+  const draft = state.drafts.get(id);
+  if (draft) {
+    draft.existing = state.config.models[id];
+    state.editor = draft;
+    showEditor();
+    return;
+  }
   const model = state.byId.get(id) ?? { id, name: id, description: "", pricing: {} };
   const existing = state.config.models[id];
   const p = existing?.options?.provider;
+  const cached = state.endpoints.get(id);
+  const fresh = cached && Date.now() - cached.at < ENDPOINTS_TTL;
   const ed = state.editor = {
     id, model, existing,
-    endpoints: [], missing: [],
-    loading: !isRouter(model),
+    endpoints: fresh ? cached.data : [], missing: [],
+    loading: !isRouter(model) && !fresh,
     error: null,
+    touched: false,
     mode: p?.order?.length ? "pinned" : "auto",
     picked: [...(p?.order ?? [])],
     fallbacks: existing ? p?.allow_fallbacks ?? true : false,
@@ -507,36 +741,48 @@ async function openEditor(id) {
     nameTouched: false,
     sort: { key: "in", dir: 1 },
   };
-  $("#catalog-view").hidden = true;
-  $("#editor-view").hidden = false;
-  document.querySelector("main").scrollTop = 0;
-  renderSide();
-  renderEditor();
+  if (ed.loading) showEditor();
 
   if (ed.loading) {
     try {
-      ed.endpoints = (await api(`/api/endpoints?id=${encodeURIComponent(id)}`)).endpoints;
+      ed.endpoints = await endpointsOf(id);
     } catch (e) {
       ed.error = e.message;
     }
     if (state.editor !== ed) return; // w międzyczasie otwarto inny model
     ed.loading = false;
+  }
+  if (!isRouter(model) && !ed.error) {
     ed.missing = ed.picked.filter((t) => !ed.endpoints.some((e) => e.tag === t));
     ed.picked = ed.picked.filter((t) => !ed.missing.includes(t));
   }
   ed.nameTouched = Boolean(existing?.name) && existing.name !== autoName(ed);
+  if (fresh || isRouter(model)) showEditor();
+  else {
+    renderSide();
+    keepFocus($("#editor-view"), renderEditor);
+  }
+}
+
+function showEditor() {
+  $("#catalog-view").hidden = true;
+  $("#editor-view").hidden = false;
+  document.querySelector("main").scrollTop = 0;
+  renderSide();
   renderEditor();
+  $("#editor h1").focus();
 }
 
 function renderEditor() {
   const ed = state.editor, m = ed.model;
   const costKnown = Boolean(costFrom(routePricing(ed)));
   const changes = priceChanges(ed);
+  const entry = ed.loading ? null : buildEntry(ed);
 
   $("#editor").innerHTML = `
     <div>
-      <button class="link" data-act="back">← Wszystkie modele</button>
-      <h1 style="margin-top:10px">${esc(m.name)}</h1>
+      <button class="link" data-act="back" title="Esc">← Wszystkie modele</button>
+      <h1 style="margin-top:10px" tabindex="-1">${esc(m.name)}</h1>
       <div class="mono muted">${esc(m.id)}</div>
       ${m.description ? `<p class="desc">${esc(m.description)}</p>` : ""}
     </div>
@@ -545,7 +791,7 @@ function renderEditor() {
       Zapisz, żeby zaktualizować licznik kosztów w OpenCode.</p>` : ""}
 
     <section class="panel">
-      <h2>Nazwa i rola</h2>
+      <h2>Nazwa, rola i licznik kosztów</h2>
       <label class="field">
         <span>Nazwa widoczna w OpenCode</span>
         <input type="text" id="name" value="${esc(ed.nameTouched ? ed.name : autoName(ed))}">
@@ -560,9 +806,11 @@ function renderEditor() {
         }).join("")}
         <label class="check">
           <input type="checkbox" id="cost" ${ed.cost && costKnown ? "checked" : ""} ${costKnown ? "" : "disabled"}>
-          <span><b>Licz koszt sesji</b><small>${costKnown
-            ? "Zapisuje ceny, żeby OpenCode pokazywał koszt. Nie wpływa na rachunek."
-            : "Cena jest zmienna, więc OpenCode nie policzy kosztu."}</small></span>
+          <span><b>Licz koszt sesji</b><small>${!costKnown
+            ? "Cena jest zmienna, więc OpenCode nie policzy kosztu."
+            : ed.mode === "pinned" || isRouter(m)
+              ? "Zapisuje ceny, żeby OpenCode pokazywał koszt. Nie wpływa na rachunek."
+              : "Zapisuje cenę OpenRoutera dla modelu; wybrany przez niego provider może być tańszy. Nie wpływa na rachunek."}</small></span>
         </label>
       </div>
     </section>
@@ -571,28 +819,41 @@ function renderEditor() {
       <h2>Kto obsługuje zapytania</h2>
       ${isRouter(m)
         ? `<p class="note" style="margin:0">To router OpenRoutera — przy każdym zapytaniu sam dobiera model i providera, więc nie ma tu czego przypinać.</p>`
-        : providersPanel(ed)}
-    </section>`;
-  renderSavebar();
+        : providersPanel(ed, entry && limitsOf(ed))}
+    </section>
+    ${entry ? jsonPanel(ed, entry) : ""}`;
+  renderSavebar(entry);
 }
 
-function providersPanel(ed) {
+function precisionCell(q) {
+  if (q == null || q === "unknown") return '<span class="muted" title="Provider nie podaje precyzji">nieznana</span>';
+  if (LOW_PRECISION.test(q)) return `<span class="low" title="Mocna kwantyzacja: taniej i szybciej, ale model może działać gorzej">${esc(q)}</span>`;
+  return esc(q);
+}
+
+const uptimeCell = (u) => (u == null ? "—"
+  : `<span class="${u < 95 ? "bad" : u < 99 ? "meh" : ""}">${u.toFixed(1)}%</span>`);
+
+function providersPanel(ed, lim) {
   if (ed.loading) return '<p class="muted" style="margin:0">Ładowanie providerów…</p>';
-  if (ed.error) return `<p class="note warn" style="margin:0">${esc(ed.error)}</p>`;
+  if (ed.error) return `<div class="note warn" style="margin:0">${esc(ed.error)}
+    <div style="margin-top:8px"><button class="small" data-act="retry">Spróbuj ponownie</button></div></div>`;
   const mode = (value, title, text) => `
     <label class="mode ${ed.mode === value ? "on" : ""}">
       <input type="radio" name="mode" value="${value}" ${ed.mode === value ? "checked" : ""}>
       <span><b>${title}</b><small>${text}</small></span>
     </label>`;
   const chips = ed.picked.map((t, i) => `${i ? '<span class="arrow">→</span>' : ""}
-    <span class="chip">${i + 1}. ${esc(providerName(ed, t))}<button data-unpick="${esc(t)}" title="Usuń">×</button></span>`).join("");
+    <span class="chip">${i + 1}. ${esc(providerName(ed, t))}
+      ${i ? `<button data-move="${esc(t)}" title="Przesuń wcześniej" aria-label="Przesuń ${esc(providerName(ed, t))} wcześniej">‹</button>` : ""}
+      <button data-unpick="${esc(t)}" title="Usuń" aria-label="Usuń ${esc(providerName(ed, t))}">×</button></span>`).join("");
 
   return `
     <div class="modes">
       ${mode("auto", "Automatycznie", "OpenRouter wybiera providera sam, biorąc pod uwagę cenę i dostępność.")}
       ${mode("pinned", "Wybrani providerzy", "Zapytania idą tylko do zaznaczonych poniżej, w kolejności zaznaczania.")}
     </div>
-    ${ed.missing.length ? `<p class="note warn">Tego providera z configu nie ma już w OpenRouter: ${esc(ed.missing.join(", "))}</p>` : ""}
+    ${ed.missing.length ? `<p class="note warn">Tego providera z configu nie ma już w OpenRouter: ${esc(ed.missing.join(", "))}. Wybierz innego i zapisz.</p>` : ""}
     ${ed.mode === "pinned" ? `
       <div class="order">${chips || '<span class="muted">Kliknij providera w tabeli, żeby go dodać. Możesz wybrać kilku — kolejni będą zapasowi.</span>'}</div>
       <label class="check">
@@ -600,42 +861,75 @@ function providersPanel(ed) {
         <span><b>Gdy wybrani nie odpowiadają, użyj innego providera</b>
         <small>Wyłączone: OpenCode dostanie błąd, ale masz pewność ceny i jakości.</small></span>
       </label>` : `<p class="muted" style="margin:0">Poniżej dostępni providerzy — kliknij wiersz, żeby przypiąć konkretnego.</p>`}
+    <div class="scroll">
     <table class="providers">
       ${thead(PROVIDER_COLS, ed.sort, "<th></th>")}
       <tbody>${sortRows(ed.endpoints, PROVIDER_COLS, ed.sort).map((e) => {
         const i = ed.mode === "pinned" ? ed.picked.indexOf(e.tag) : -1;
-        return `<tr class="${i >= 0 ? "picked" : ""}" data-tag="${esc(e.tag)}">
+        const { variant } = providerParts(ed.endpoints, e.tag);
+        const limiting = (by, what) => (i >= 0 && lim?.[by] === e
+          ? ` limiting" title="Ten provider obniża ${what} dla całej listy` : "");
+        return `<tr class="${i >= 0 ? "picked" : ""}" data-tag="${esc(e.tag)}" tabindex="0">
           <td style="width:32px"><span class="pick">${i >= 0 ? i + 1 : ""}</span></td>
-          <td>${esc(e.provider_name)}</td>
-          <td class="mono">${esc(e.quantization ?? "—")}</td>
+          <td>${esc(e.provider_name)}${variant ? ` <span class="mono muted">${esc(variant)}</span>` : ""}</td>
+          <td class="mono">${precisionCell(e.quantization)}</td>
           <td class="n">${usd(per1M(e.pricing.prompt))}</td>
           <td class="n">${usd(per1M(e.pricing.completion))}</td>
           <td class="n">${usd(per1M(e.pricing.input_cache_read))}</td>
-          <td class="n">${tok(e.context_length)}</td>
-          <td class="n">${tok(e.max_completion_tokens)}</td>
-          <td class="n">${e.uptime_last_1d == null ? "—" : e.uptime_last_1d.toFixed(1) + "%"}</td>
+          <td class="n${limiting("ctxBy", "kontekst")}">${tok(e.context_length)}</td>
+          <td class="n${limiting("outBy", "maks. odpowiedź")}">${tok(e.max_completion_tokens)}</td>
+          <td class="n">${uptimeCell(e.uptime_last_1d)}</td>
         </tr>`;
       }).join("") || '<tr><td colspan="9" class="empty">OpenRouter nie zwrócił providerów dla tego modelu.</td></tr>'}</tbody>
-    </table>`;
+    </table>
+    </div>
+    <small class="legend">Precyzja: bf16/fp8 to praktycznie pełna jakość, <span class="low">fp4/nvfp4/int4</span> są tańsze, ale model może działać gorzej.
+      Dostępność: <span class="meh">poniżej 99%</span>, <span class="bad">poniżej 95%</span>.</small>`;
 }
 
-function renderSavebar() {
+// Podgląd dokładnie tego, co zapis wstawi do configu (pola spoza edytora zostają bez zmian).
+function jsonPanel(ed, entry) {
+  const { provider: _, ...otherOptions } = ed.existing?.options ?? {};
+  const options = entry.provider ? { ...otherOptions, provider: entry.provider } : otherOptions;
+  const json = { ...ed.existing, name: entry.name, limit: entry.limit, cost: entry.cost, options: Object.keys(options).length ? options : undefined };
+  const roles = ROLES.filter((r) => ed.roles.has(r.key)).map((r) => `\n"${r.key}": "${ref(ed.id)}"`).join("");
+  return `<details class="panel" ${state.jsonOpen ? "open" : ""}>
+    <summary>Podgląd wpisu w configu<small>provider.openrouter.models</small></summary>
+    <pre class="mono">${esc(`"${ed.id}": ${JSON.stringify(json, null, 2)}${roles}`)}</pre>
+  </details>`;
+}
+
+function renderSavebar(entry) {
   const ed = state.editor;
-  const entry = ed.loading ? null : buildEntry(ed);
-  let summary;
+  const changes = entry && pendingChanges(ed, entry);
+  let summary, sub = "";
   if (ed.loading) summary = "Ładowanie…";
   else if (!entry) summary = ed.mode === "pinned" ? "Wybierz co najmniej jednego providera." : "Brak danych o limitach modelu.";
   else {
+    const eps = pickedEndpoints(ed);
     const route = ed.mode === "pinned"
-      ? pickedEndpoints(ed).map((e) => e.provider_name).join(" → ") + (ed.fallbacks ? ", potem dowolny" : ", bez zapasowych")
+      ? eps.map((e) => providerName(ed, e.tag)).join(" → ") + (ed.fallbacks ? " → dowolny inny" : " · tylko wybrani")
       : "OpenRouter wybiera providera";
-    const price = entry.cost ? ` · ${usd(entry.cost.input)} / ${usd(entry.cost.output)} za 1M` : "";
+    const c = entry.cost;
+    const price = !c ? "" : c.input === 0 && c.output === 0 ? " · za darmo" : ` · ${usd(c.input)} / ${usd(c.output)} za 1M`;
     summary = `<b>${esc(entry.name)}</b> · ${esc(route)}${price}`;
+
+    const lim = limitsOf(ed);
+    const by = [...new Set([lim.ctxBy, lim.outBy].filter(Boolean).map((e) => providerName(ed, e.tag)))];
+    sub = `Kontekst ${tok(lim.context)} · odpowiedź ${tok(lim.output)}${by.length ? ` (ogranicza: ${esc(by.join(", "))})` : ""}`;
+    // Bez działań użytkownika różnica wynika ze zmian w OpenRouterze (ceny, limity), a nie z edycji.
+    if (changes?.length) sub += ` · <span class="dirty">${ed.touched ? "Niezapisane zmiany" : "Zapis zaktualizuje"}: ${esc(changes.join(", "))}</span>`;
+    else if (changes) {
+      const saved = state.lastSave?.id === ed.id
+        ? `Zapisano o ${time(state.lastSave.at)} · poprzednia wersja w ${esc(state.config.path.split("/").pop())}.bak`
+        : "Zapisane w configu, bez zmian";
+      sub += ` · <span class="done">${saved}</span>`;
+    }
   }
   $("#savebar").innerHTML = `
-    <div class="summary">${summary}</div>
+    <div class="summary"><div>${summary}</div>${sub ? `<div class="sub">${sub}</div>` : ""}</div>
     ${ed.existing ? '<button class="danger" data-act="remove">Usuń z configu</button>' : ""}
-    <button class="primary" data-act="save" ${entry ? "" : "disabled"}>${ed.existing ? "Zapisz zmiany" : "Dodaj do configu"}</button>`;
+    <button class="primary" data-act="save" ${entry && (!changes || changes.length) ? "" : "disabled"}>${ed.existing ? "Zapisz zmiany" : "Dodaj do configu"}</button>`;
 }
 
 $("#editor-view").addEventListener("click", async (e) => {
@@ -645,14 +939,25 @@ $("#editor-view").addEventListener("click", async (e) => {
 
   if (act === "back") return showCatalog();
 
+  if (act === "retry") {
+    ed.error = null;
+    state.editor = null;
+    return openEditor(ed.id);
+  }
+
   if (act === "save") {
+    const entry = buildEntry(ed);
+    const wasNew = !ed.existing;
     const ok = await post(
-      { action: "save", id: ed.id, entry: buildEntry(ed), defaults: [...ed.roles] },
-      ed.existing ? "Zapisano zmiany" : "Dodano do configu",
+      { action: "save", id: ed.id, entry, defaults: [...ed.roles] },
+      wasNew ? `Dodano „${entry.name}” do configu` : "Zapisano zmiany",
     );
     if (ok) {
       ed.existing = state.config.models[ed.id];
       ed.roles.clear();
+      ed.touched = false;
+      state.drafts.delete(ed.id);
+      state.lastSave = { id: ed.id, at: new Date() };
       renderAll();
       checkPrices();
     }
@@ -660,31 +965,47 @@ $("#editor-view").addEventListener("click", async (e) => {
   }
 
   if (act === "remove") {
-    const roles = ROLES.filter((r) => state.config[r.key] === ref(ed.id)).map((r) => r.key);
-    const warning = roles.length
-      ? `\n\nTen model jest ustawiony jako ${roles.join(" i ")} — OpenCode dalej go użyje, ale bez tych ustawień.`
-      : "";
-    if (confirm(`Usunąć „${ed.existing.name ?? ed.id}” z configu?${warning}`)
-      && (await post({ action: "remove", id: ed.id }, "Usunięto z configu"))) {
-      showCatalog();
-    }
+    const prev = ed.existing;
+    const name = prev.name ?? ed.id;
+    const roles = ROLES.filter((r) => state.config[r.key] === ref(ed.id));
+    if (!(await post({ action: "remove", id: ed.id }))) return;
+    ed.touched = false;
+    showCatalog();
+    const undo = async () => {
+      if (await post({ action: "restore", id: ed.id, entry: prev }, `Przywrócono „${name}”`)) {
+        renderAll();
+        checkPrices();
+      }
+    };
+    toast(`Usunięto „${name}”${roles.length ? `. Nadal jest ustawiony jako ${roles.map((r) => r.short).join(" i ")} — zmień to po lewej` : ""}.`,
+      { action: { label: "Cofnij", run: undo } });
     return;
   }
 
   const unpick = e.target.closest("[data-unpick]");
   if (unpick) {
+    ed.touched = true;
     ed.picked = ed.picked.filter((t) => t !== unpick.dataset.unpick);
-    return renderEditor();
+    return rerender();
   }
 
-  const th = e.target.closest("th[data-sort]");
+  const move = e.target.closest("[data-move]");
+  if (move) {
+    ed.touched = true;
+    const i = ed.picked.indexOf(move.dataset.move);
+    [ed.picked[i - 1], ed.picked[i]] = [ed.picked[i], ed.picked[i - 1]];
+    return rerender();
+  }
+
+  const th = e.target.closest("[data-sort]");
   if (th) {
     ed.sort = nextSort(PROVIDER_COLS, ed.sort, th.dataset.sort);
-    return renderEditor();
+    return rerender();
   }
 
   const tr = e.target.closest("tr[data-tag]");
   if (tr) {
+    ed.touched = true;
     const tag = tr.dataset.tag;
     if (ed.mode !== "pinned") {
       ed.mode = "pinned";
@@ -692,9 +1013,16 @@ $("#editor-view").addEventListener("click", async (e) => {
     } else {
       ed.picked = ed.picked.includes(tag) ? ed.picked.filter((t) => t !== tag) : [...ed.picked, tag];
     }
-    renderEditor();
+    rerender();
   }
 });
+
+// Przerysowanie edytora z zachowaniem fokusu (obsługa z klawiatury) i znacznika szkicu po lewej.
+function rerender() {
+  keepFocus($("#editor-view"), renderEditor);
+  stashDraft();
+  renderSide();
+}
 
 $("#editor-view").addEventListener("change", (e) => {
   const ed = state.editor;
@@ -704,7 +1032,8 @@ $("#editor-view").addEventListener("change", (e) => {
   else if (t.id === "cost") ed.cost = t.checked;
   else if (t.dataset.role) t.checked ? ed.roles.add(t.dataset.role) : ed.roles.delete(t.dataset.role);
   else return;
-  renderEditor();
+  ed.touched = true;
+  rerender();
 });
 
 $("#editor-view").addEventListener("input", (e) => {
@@ -712,7 +1041,8 @@ $("#editor-view").addEventListener("input", (e) => {
   const ed = state.editor;
   ed.name = e.target.value;
   ed.nameTouched = ed.name.trim() !== "";
-  renderSavebar();
+  ed.touched = true;
+  renderSavebar(buildEntry(ed));
 });
 
 // Puste pole nazwy wraca do nazwy automatycznej.
@@ -720,9 +1050,50 @@ $("#editor-view").addEventListener("focusout", (e) => {
   if (e.target.id === "name" && state.editor && !state.editor.nameTouched) e.target.value = autoName(state.editor);
 });
 
+// `toggle` nie bubbluje, więc łapiemy go w fazie capture.
+$("#editor-view").addEventListener("toggle", (e) => {
+  if (e.target.matches("details")) state.jsonOpen = e.target.open;
+}, true);
+
+// --- Klawiatura ---
+
+document.addEventListener("keydown", (e) => {
+  const t = e.target;
+  const typing = t.matches("input[type=text], input[type=search], select, textarea");
+
+  if (e.key === "/" && !typing && !e.metaKey && !e.ctrlKey) {
+    e.preventDefault();
+    if (state.editor) showCatalog();
+    else $("#q").focus();
+    return;
+  }
+
+  if (e.key === "Escape") {
+    if (t.id === "q" && t.value) return; // przeglądarka sama czyści pole wyszukiwania
+    if (t.id === "name") return t.blur();
+    if (state.editor && !typing) return showCatalog();
+  }
+
+  // Wiersze tabel: Enter/spacja wybiera, strzałki przechodzą między wierszami.
+  if (t.id === "q" && e.key === "ArrowDown") {
+    e.preventDefault();
+    return $("#catalog tbody tr[tabindex]")?.focus();
+  }
+  if (!t.matches("tr[tabindex]")) return;
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    t.click();
+  } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    const next = e.key === "ArrowDown" ? t.nextElementSibling : t.previousElementSibling;
+    if (next) next.focus();
+    else if (e.key === "ArrowUp" && t.closest("#catalog")) $("#q").focus();
+  }
+});
+
 function renderAll() {
   renderSide();
-  if (state.editor) renderEditor();
+  if (state.editor) keepFocus($("#editor-view"), renderEditor);
   else renderCatalog();
 }
 
@@ -735,7 +1106,10 @@ try {
   renderCatalog();
   checkPrices();
 } catch (e) {
-  $("#catalog").innerHTML = `<tbody><tr><td class="empty">${esc(e.message)}</td></tr></tbody>`;
+  $("#catalog").innerHTML = `<tbody><tr><td><div class="error-box" role="alert">${esc(e.message)}
+    <button class="small" onclick="location.reload()">Spróbuj ponownie</button></div></td></tr></tbody>`;
+  $("#saved").innerHTML = '<p class="muted" style="margin:0">Nie udało się wczytać configu.</p>';
+  for (const sel of document.querySelectorAll("select[data-role]")) sel.innerHTML = "<option>—</option>";
 }
 </script>
 </body>
