@@ -13,7 +13,7 @@ Wymaga [Bun](https://bun.sh).
 
 ```sh
 cd ~/Github/opencode-openrouter-config
-bun install   # tylko za pierwszym razem
+bun install   # za pierwszym razem i po każdym git pull
 bun start
 ```
 

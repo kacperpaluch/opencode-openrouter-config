@@ -171,20 +171,28 @@ async function chatResponse(req: Request) {
 const CHAT_CSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
   + "img-src 'self' blob: data:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'none'";
 
-const asset = (path: string, type: string) => () =>
-  new Response(Bun.file(join(import.meta.dir, path)), { headers: { "content-type": type } });
+const asset = (path: string, type: string) => (req: Request) =>
+  !isLocalHost(req) ? forbidden() : new Response(Bun.file(join(import.meta.dir, path)), { headers: { "content-type": type } });
+
+// Obcy Host to DNS rebinding: wroga strona kieruje swoją domenę na 127.0.0.1 i czyta przez nią rozmowy i pliki.
+const isLocalHost = (req: Request) =>
+  ["127.0.0.1", "localhost"].includes(req.headers.get("host")?.replace(/:\d+$/, "") ?? "");
 
 // Każde zapytanie odsuwa automatyczne wyłączenie serwera.
 let lastRequest = Date.now();
-const tracked = <T extends unknown[], R>(handler: (...args: T) => R) => (...args: T) => {
+const tracked = <Req extends Request, R>(handler: (req: Req) => R) => (req: Req) => {
+  if (!isLocalHost(req)) return forbidden();
   lastRequest = Date.now();
-  return handler(...args);
+  return handler(req);
 };
 
 try {
   Bun.serve({
     hostname: "127.0.0.1",
     port: PORT,
+    // Domyślnie Bun zrywa połączenie po 10 s ciszy, a model potrafi dłużej myśleć przed pierwszym tokenem
+    // (rozpoznawanie PDF-u, streszczanie długiej rozmowy). Serwer słucha tylko lokalnie, więc limit jest zbędny.
+    idleTimeout: 0,
     routes: {
       "/": tracked(() => new Response(Bun.file(join(import.meta.dir, "index.html")))),
       "/api/models": tracked(() => respond(() => openrouter("/models"))),
@@ -220,7 +228,7 @@ try {
           if (!isLocalRequest(req)) return forbidden();
           return respond(async () => {
             const { model } = await req.json();
-            return summarize(req.params.id, model, await providerFor(model));
+            return summarize(req.params.id, model, await providerFor(model), req.signal);
           });
         }),
       },

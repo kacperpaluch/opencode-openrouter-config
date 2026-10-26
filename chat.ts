@@ -144,12 +144,14 @@ export function fileResponse(id: string) {
 }
 
 // Polskie banki często eksportują CSV w Windows-1250, a nie w UTF-8.
+// Nigdy nie rzuca: plik, którego nie da się odczytać, nie może zablokować całej rozmowy.
 function decodeText(data: Uint8Array) {
-  try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(data);
-  } catch {
-    return new TextDecoder("windows-1250").decode(data);
+  for (const label of ["utf-8", "windows-1250"]) {
+    try {
+      return new TextDecoder(label, { fatal: true }).decode(data);
+    } catch {}
   }
+  return new TextDecoder("utf-8").decode(data);
 }
 
 const fileData = db.query("SELECT name, mime, kind, data FROM files WHERE id = ?");
@@ -178,6 +180,8 @@ function history(chatId: string) {
       continue;
     }
     if (m.role === "assistant") {
+      // Odpowiedź przerwana przed pierwszym tokenem jest pusta, a część providerów (np. Anthropic) odrzuca puste wiadomości.
+      if (!m.text.trim()) continue;
       out.push({ role: "assistant", content: m.text, ...(m.annotations ? { annotations: JSON.parse(m.annotations) } : {}) });
       continue;
     }
@@ -227,9 +231,12 @@ function prepare(body: SendBody) {
 
 // Odpowiedź do przeglądarki to NDJSON: jedna linia = jedno zdarzenie (chat, user, meta, reasoning, content, done).
 export function send(body: SendBody, provider: unknown, signal: AbortSignal) {
-  const { chatId, user } = prepare(body);
-  db.run("UPDATE chats SET model = ?, updated = ? WHERE id = ?", [body.model, now(), chatId]);
-  const { messages, pdf } = history(chatId);
+  // Jeśli zbudowanie zapytania się nie uda, wiadomość użytkownika nie zostaje w bazie.
+  const { chatId, user, messages, pdf } = db.transaction(() => {
+    const { chatId, user } = prepare(body);
+    db.run("UPDATE chats SET model = ?, updated = ? WHERE id = ?", [body.model, now(), chatId]);
+    return { chatId, user, ...history(chatId) };
+  })();
   const engine = PDF_ENGINES.includes(body.pdfEngine ?? "") ? body.pdfEngine : "cloudflare-ai";
   const request = {
     model: body.model,
@@ -285,7 +292,7 @@ Wymień załączniki z nazwy razem z najważniejszymi danymi z nich.
 Pisz zwięźle, w punktach, w języku rozmowy. Nie dodawaj niczego, czego nie było w rozmowie.`;
 
 // Streszczenie zostaje zapisane jako pierwszy element nowej rozmowy; stara zostaje bez zmian.
-export async function summarize(chatId: string, model: string, provider: unknown) {
+export async function summarize(chatId: string, model: string, provider: unknown, signal?: AbortSignal) {
   const source = db.query("SELECT title FROM chats WHERE id = ?").get(chatId) as { title: string } | null;
   if (!source) throw new Error("Nie ma takiej rozmowy");
   const { messages, pdf } = history(chatId);
@@ -296,7 +303,7 @@ export async function summarize(chatId: string, model: string, provider: unknown
     ...(provider ? { provider } : {}),
     // PDF-y są już rozpoznane (adnotacje w historii), więc silnik nie ma znaczenia dla kosztu.
     ...(pdf ? { plugins: [{ id: "file-parser", pdf: { engine: "cloudflare-ai" } }] } : {}),
-  });
+  }, signal);
   if (!res.ok) throw new Error(await errorText(res));
   const json = (await res.json()) as any;
   const text = json.choices?.[0]?.message?.content?.trim();

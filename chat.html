@@ -250,6 +250,8 @@ DOMPurify.addHook("afterSanitizeAttributes", (node) => {
 const md = (s) => DOMPurify.sanitize(marked.parse(s), {
   FORBID_TAGS: ["img", "style", "form", "input", "button", "iframe", "video", "audio"],
   FORBID_ATTR: ["style"],
+  // Atrybuty data-act, data-chat itd. uruchamiają akcje aplikacji, więc odpowiedź modelu nie może ich zawierać.
+  ALLOW_DATA_ATTR: false,
 });
 
 const state = {
