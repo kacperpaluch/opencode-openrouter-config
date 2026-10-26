@@ -13,7 +13,7 @@ Wymaga [Bun](https://bun.sh).
 
 ```sh
 cd ~/Github/opencode-openrouter-config
-bun install   # za pierwszym razem i po każdym git pull
+bun install   # za pierwszym razem i po każdym git pull (aplikacja robi to sama)
 bun start
 ```
 
@@ -30,7 +30,9 @@ strona pokaże komunikat, że serwer nie odpowiada. Wtedy uruchom aplikację pon
 ```
 
 Tworzy `~/Applications/OpenCode Models.app`. Od tej pory wystarczy **Cmd+Spacja → „OpenCode Models”**
-(albo ikona w Docku): serwer startuje w tle bez terminala i otwiera się przeglądarka.
+(albo ikona w Docku): aplikacja doinstalowuje brakujące zależności (`bun install`), serwer startuje w tle
+bez terminala i otwiera się przeglądarka. Jeśli serwer już działa, otwiera się tylko strona, więc po `git pull`
+zatrzymaj stary serwer (`pkill -f "bun server.ts"`), żeby wystartował nowy kod.
 Logi serwera trafiają do `~/Library/Logs/opencode-openrouter-config.log`.
 
 Aplikacja zapamiętuje ścieżkę do repo i do `bun`. Po przeniesieniu folderu uruchom skrypt ponownie.

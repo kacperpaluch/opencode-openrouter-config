@@ -10,8 +10,9 @@ LOG="$HOME/Library/Logs/opencode-openrouter-config.log"
 
 mkdir -p "$HOME/Applications"
 rm -rf "$APP"
+# bun install dociąga zależności dodane po git pull (bez zmian trwa ułamek sekundy); błąd nie blokuje startu.
 # Serwer odpięty od skryptu (własne stdin/stdout), żeby aplikacja od razu się zamknęła.
-osacompile -o "$APP" -e "do shell script \"cd '$DIR'; nohup '$BUN' server.ts < /dev/null >> '$LOG' 2>&1 &\""
+osacompile -o "$APP" -e "do shell script \"cd '$DIR'; '$BUN' install >> '$LOG' 2>&1; nohup '$BUN' server.ts < /dev/null >> '$LOG' 2>&1 &\""
 # Bez ikony w Docku; zmiana Info.plist wymaga ponownego podpisu.
 plutil -replace LSUIElement -bool true "$APP/Contents/Info.plist"
 codesign --force --sign - "$APP" 2>/dev/null
