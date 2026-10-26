@@ -4,6 +4,9 @@ Mała lokalna aplikacja do wybierania modeli z OpenRoutera i zapisywania ich w c
 Przeglądasz katalog modeli, porównujesz providerów (ceny, precyzję, kontekst, dostępność),
 wybierasz i klikasz „Dodaj do configu”. Aplikacja sama aktualizuje `opencode.jsonc`.
 
+Ma też prosty **czat** (`/chat`), który używa tych samych modeli razem z przypiętymi providerami.
+Obsługuje obrazki, PDF-y i pliki CSV i pokazuje koszt każdej odpowiedzi.
+
 ## Uruchomienie
 
 Wymaga [Bun](https://bun.sh).
@@ -40,6 +43,8 @@ Opcje:
 | `OPENCODE_CONFIG=/ścieżka/do/pliku.jsonc bun start` | inny plik configu (np. kopia do testów) |
 | `bun server.ts --no-open` | bez otwierania przeglądarki |
 | `IDLE_MINUTES=60 bun start` | inny czas automatycznego wyłączenia (`0` = nigdy) |
+| `OPENROUTER_API_KEY=… bun start` | klucz do czatu, gdy nie chcesz brać go z OpenCode |
+| `CHAT_DB=/ścieżka/chat.db bun start` | inna baza rozmów (np. do testów) |
 
 ## Jak korzystać
 
@@ -91,6 +96,38 @@ Wystarczy kliknąć **Zapisz zmiany**, żeby zaktualizować `cost`.
    **Podgląd wpisu w configu** pod tabelą pokazuje dokładny JSON, który trafi do pliku.
 
 Przejście do innego modelu nie kasuje niezapisanych zmian. Po powrocie edytor jest w takim stanie, w jakim go zostawiono.
+
+### Czat
+
+Link **Czat z modelami →** pod nazwą aplikacji (albo `http://127.0.0.1:4747/chat`).
+
+- **Model** wybierasz z modeli zapisanych w configu. Czat używa ich ustawień providera (`order`, `allow_fallbacks`),
+  więc rozmawiasz dokładnie z tym providerem, którego wybrałeś w edytorze. Pod listą widać trasę, cenę i to, czy model czyta obrazki.
+  Model można zmienić w trakcie rozmowy; każda odpowiedź pamięta, kto jej udzielił.
+- **Odpowiedzi** pojawiają się na bieżąco. Tok myślenia modelu (jeśli go podaje) jest zwinięty pod „Myślenie”.
+  **Zatrzymaj** (albo `Esc`) przerywa odpowiedź; to, co już przyszło, zostaje zapisane.
+- **Koszt**: pod każdą odpowiedzią widać tokeny wejścia (i jaki procent z nich był odczytany z cache), tokeny wyjścia
+  i koszt podany przez OpenRouter. Nad rozmową jest jej łączny koszt i zajęty kontekst, a na liście rozmów koszt każdej z nich.
+  Cache zmniejsza koszt tylko wtedy, gdy provider ma niższą cenę cache niż wejścia (kolumna „Cache / 1M” w edytorze modelu).
+- **Długie rozmowy**: każda wiadomość wysyła całą historię, więc długa rozmowa drożeje z każdą odpowiedzią.
+  Od 40 tys. tokenów kontekstu (albo połowy kontekstu modelu) nad polem wiadomości pojawia się ostrzeżenie z kosztem
+  samego wejścia następnej wiadomości. **Streść i kontynuuj** (przy ostrzeżeniu i w nagłówku) prosi model o streszczenie
+  ustaleń, liczb, decyzji i danych z załączników i zakłada nową rozmowę, która zaczyna od tego streszczenia.
+  Model widzi wtedy tylko streszczenie. Stara rozmowa zostaje na liście, a nowa ma przycisk **Otwórz poprzednią**.
+  Streszczenie kosztuje tyle co jedna odpowiedź z całą historią.
+- **Załączniki**: przycisk **+ Plik**, przeciągnięcie pliku albo wklejenie zrzutu ekranu.
+  - **Obrazki** (PNG, JPG, WebP, GIF, do 20 MB): tylko dla modeli, które je czytają. Inaczej aplikacja ostrzega i blokuje wysłanie.
+  - **PDF** (do 20 MB): działa z każdym modelem. Jeśli model nie czyta PDF-ów sam, OpenRouter najpierw zamienia je na tekst:
+    `cloudflare-ai` (za darmo, PDF-y z tekstem) albo `mistral-ocr` ($2 za 1000 stron, skany). Wynik rozpoznania jest zapisywany
+    przy odpowiedzi i wysyłany z powrotem, więc ten sam PDF nie jest rozpoznawany (ani płatny) drugi raz.
+  - **Pliki tekstowe** (CSV, TSV, TXT, MD, JSON, do 2 MB): trafiają do modelu jako tekst. CSV z polskich banków w Windows-1250
+    są rozpoznawane automatycznie.
+  - Załączniki są wysyłane przy każdej kolejnej wiadomości, tak jak cała historia rozmowy, więc zwiększają koszt każdej odpowiedzi.
+  - PDF przy rozpoznawaniu trafia też do Cloudflare albo Mistrala. Przy wrażliwych dokumentach bezpieczniej wysłać CSV.
+- **Rozmowy i załączniki** są zapisywane lokalnie w `~/Library/Application Support/OpenCode Models/chat.db`.
+  **Usuń rozmowę** (dwa kliknięcia) kasuje ją razem z załącznikami.
+- Czat ma stały, ogólny prompt systemowy (`SYSTEM_PROMPT` w `chat.ts`): odpowiedzi w języku użytkownika, zwięźle,
+  z obliczeniami i założeniami, tabele do porównań. Podaje też modelowi dzisiejszą datę.
 
 ### Skróty klawiszowe
 
@@ -146,9 +183,9 @@ Przykład wpisu z przypiętym providerem:
 ## Jak to działa
 
 ```
-przeglądarka (index.html)  ⇄  server.ts (Bun, 127.0.0.1:4747)  ⇄  OpenRouter API (publiczne, bez klucza)
-                                         ⇣
-                         ~/.config/opencode/opencode.jsonc
+przeglądarka (index.html, chat.html)  ⇄  server.ts + chat.ts (Bun, 127.0.0.1:4747)  ⇄  OpenRouter API
+                                              ⇣                     ⇣
+                           ~/.config/opencode/opencode.jsonc     chat.db (rozmowy)
 ```
 
 - **`server.ts`**: mały serwer w Bun.
@@ -158,8 +195,14 @@ przeglądarka (index.html)  ⇄  server.ts (Bun, 127.0.0.1:4747)  ⇄  OpenRoute
     formatowanie i reszta configu (pluginy, inne ustawienia) zostają nietknięte.
   - Przed każdym zapisem robi kopię **`opencode.jsonc.bak`** (tylko ostatnią).
   - Nasłuchuje wyłącznie na `127.0.0.1` i odrzuca zapisy wysłane z innych stron.
+- **`chat.ts`**: czat. Rozmowy i załączniki trzyma w SQLite (`bun:sqlite`), składa historię w formacie OpenRoutera
+  i przekazuje odpowiedź do przeglądarki na bieżąco (NDJSON). Klucz API bierze z `OPENROUTER_API_KEY` albo z
+  `~/.local/share/opencode/auth.json` (zapisany przez OpenCode). Klucz zostaje na serwerze i nie trafia do przeglądarki.
 - **`scripts/install-app.sh`**: buduje `OpenCode Models.app` przez `osacompile` (AppleScript uruchamiający serwer).
-- **`index.html`**: cały interfejs, czysty HTML/CSS/JS bez frameworka i bez budowania.
+- **`index.html`**: interfejs configu, czysty HTML/CSS/JS bez frameworka i bez budowania.
+- **`chat.html`**: interfejs czatu. Markdown renderuje `marked`, a `dompurify` czyści HTML z odpowiedzi.
+  Odpowiedź modelu nie może wyświetlać obrazków ani ładować niczego spoza aplikacji (CSP), żeby treść podrzucona
+  np. w PDF-ie nie mogła wysłać rozmowy na zewnątrz.
 
 Config wybierany jest w kolejności: zmienna `OPENCODE_CONFIG`, potem `~/.config/opencode/opencode.jsonc`,
 potem `~/.config/opencode/opencode.json`.
@@ -178,3 +221,6 @@ cp ~/.config/opencode/opencode.jsonc.bak ~/.config/opencode/opencode.jsonc
   (np. w rolach), ale ich nie edytuje.
 - API OpenRoutera nie podaje latency ani throughput, więc tych kolumn nie ma.
 - `cost` odpowiada pierwszemu providerowi. Jeśli zapytanie trafi do zapasowego, licznik w OpenCode będzie przybliżony.
+- Przerwana odpowiedź w czacie nie ma kosztu, bo OpenRouter podaje go dopiero na końcu. Wygenerowane tokeny mogą
+  zostać naliczone (zależy od providera). Faktyczny koszt widać w Activity na openrouter.ai.
+- Czat nie streszcza rozmów sam. Robi to dopiero po kliknięciu **Streść i kontynuuj**, żeby nic nie znikało bez Twojej wiedzy.

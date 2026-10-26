@@ -6,6 +6,8 @@
     "start": "bun server.ts"
   },
   "dependencies": {
-    "jsonc-parser": "^3.3.1"
+    "dompurify": "^3.4.17",
+    "jsonc-parser": "^3.3.1",
+    "marked": "^18.1.1"
   }
 }

@@ -11,3 +11,8 @@ node_modules/
 .skillbox/
 .mcp.json
 opencode.json
+
+# Baza rozmów czatu (domyślnie poza repo, ale CHAT_DB może wskazać tutaj)
+*.db
+*.db-shm
+*.db-wal

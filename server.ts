@@ -2,6 +2,7 @@ import { applyEdits, modify, parse, type ParseError } from "jsonc-parser";
 import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { CHAT_DB, deleteChat, fileResponse, getChat, listChats, send, summarize, uploadFile } from "./chat.ts";
 
 const PORT = Number(process.env.PORT ?? 4747);
 const URL_BASE = `http://127.0.0.1:${PORT}`;
@@ -139,12 +140,39 @@ async function respond(fn: () => unknown) {
   }
 }
 
-// Tylko strona tej aplikacji może zmieniać config (ochrona przed CSRF z innych kart).
-function isLocalRequest(req: Request) {
+// Tylko strona tej aplikacji może zmieniać dane (ochrona przed CSRF z innych kart).
+// Wymagany content-type wymusza preflight CORS, którego obce strony nie przejdą.
+function isLocalRequest(req: Request, type = "application/json") {
   const origin = req.headers.get("origin");
   const fromApp = !origin || origin === URL_BASE || origin === `http://localhost:${PORT}`;
-  return fromApp && req.headers.get("content-type")?.startsWith("application/json");
+  return fromApp && req.headers.get("content-type")?.startsWith(type);
 }
+
+const forbidden = () => new Response("Forbidden", { status: 403 });
+
+// Czat używa modeli z configu razem z przypiętymi tam providerami.
+async function providerFor(model: unknown) {
+  checkId(model);
+  const { json } = await readConfig();
+  const entry = json.provider?.openrouter?.models?.[model];
+  if (!entry) throw new Error(`Modelu ${model} nie ma w configu. Dodaj go w „Twoich modelach”.`);
+  return entry.options?.provider;
+}
+
+async function chatResponse(req: Request) {
+  const body = await req.json();
+  const provider = await providerFor(body?.model);
+  return new Response(send(body, provider, req.signal), {
+    headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" },
+  });
+}
+
+// Odpowiedzi modelu mogą zawierać cokolwiek, więc strona czatu nie może niczego ładować spoza aplikacji.
+const CHAT_CSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+  + "img-src 'self' blob: data:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'none'";
+
+const asset = (path: string, type: string) => () =>
+  new Response(Bun.file(join(import.meta.dir, path)), { headers: { "content-type": type } });
 
 // Każde zapytanie odsuwa automatyczne wyłączenie serwera.
 let lastRequest = Date.now();
@@ -169,16 +197,51 @@ try {
       "/api/config": {
         GET: tracked(() => respond(configView)),
         POST: tracked(async (req: Request) => {
-          if (!isLocalRequest(req)) return new Response("Forbidden", { status: 403 });
+          if (!isLocalRequest(req)) return forbidden();
           return respond(async () => {
             await applyAction(await req.json());
             return configView();
           });
         }),
       },
+      "/chat": tracked(() => new Response(Bun.file(join(import.meta.dir, "chat.html")), {
+        headers: { "content-type": "text/html; charset=utf-8", "content-security-policy": CHAT_CSP },
+      })),
+      "/vendor/marked.js": asset("node_modules/marked/lib/marked.esm.js", "text/javascript"),
+      "/vendor/purify.js": asset("node_modules/dompurify/dist/purify.es.mjs", "text/javascript"),
+      "/api/chats": tracked(() => respond(listChats)),
+      "/api/chats/:id": {
+        GET: tracked((req: Request & { params: { id: string } }) => respond(() => getChat(req.params.id))),
+        DELETE: tracked((req: Request & { params: { id: string } }) =>
+          isLocalRequest(req) ? respond(() => deleteChat(req.params.id)) : forbidden()),
+      },
+      "/api/chats/:id/summarize": {
+        POST: tracked(async (req: Request & { params: { id: string } }) => {
+          if (!isLocalRequest(req)) return forbidden();
+          return respond(async () => {
+            const { model } = await req.json();
+            return summarize(req.params.id, model, await providerFor(model));
+          });
+        }),
+      },
+      "/api/chat": {
+        POST: tracked(async (req: Request) => {
+          if (!isLocalRequest(req)) return forbidden();
+          try {
+            return await chatResponse(req);
+          } catch (e) {
+            return Response.json({ error: (e as Error).message }, { status: 500 });
+          }
+        }),
+      },
+      "/api/files": {
+        POST: tracked((req: Request) =>
+          isLocalRequest(req, "application/octet-stream") ? respond(() => uploadFile(req)) : forbidden()),
+      },
+      "/api/files/:id": tracked((req: Request & { params: { id: string } }) => fileResponse(req.params.id)),
     },
   });
-  console.log(`OpenCode config → ${URL_BASE}\nPlik: ${CONFIG_PATH}`);
+  console.log(`OpenCode config → ${URL_BASE}\nPlik: ${CONFIG_PATH}\nCzat: ${URL_BASE}/chat (rozmowy w ${CHAT_DB})`);
   if (IDLE_MINUTES > 0) {
     setInterval(() => {
       if (Date.now() - lastRequest < IDLE_MINUTES * 60_000) return;
